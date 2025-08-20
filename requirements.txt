@@ -1,0 +1,6 @@
+yfinance
+finnhub-python
+requests
+beautifulsoup4
+pandas
+APScheduler
