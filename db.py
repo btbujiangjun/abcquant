@@ -309,7 +309,7 @@ if __name__ == '__main__':
     """
     #database = DB("./data/quant_data.db")
     #database.update_sql(f"DELETE FROM stock_base where exchange != 'us'")
-    print(db.query_stock_base(exchange="cn"))
+    #print(db.query_stock_base(exchange="cn"))
     df = db.query_analysis_report(symbol)
     #print(df["info"])
     #df = db.query_stock_base("us")

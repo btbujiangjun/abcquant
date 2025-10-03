@@ -498,8 +498,8 @@ if __name__ == "__main__":
     symbols = ["XPEV"]
     helper = StrategyHelper()
     helper.analysis("XPEV", "2025-10-03", update=True)
-    for symbol in symbols:
-        helper.update(symbol, 15)
+    #for symbol in symbols:
+    #    helper.update(symbol, 15)
 
     """
     llm = OpenAIClient()
