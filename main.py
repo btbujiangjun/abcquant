@@ -6,7 +6,7 @@ import os
 # 将项目根目录添加到Python路径
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from db import create_tables
+from db import QuantDB
 from utils.logger import log
 from agents.scheduler_agent import SchedulerAgent
 
@@ -14,7 +14,7 @@ def main():
     log.info("Starting quant spider project...")
     
     # 1. 初始化数据库
-    create_tables()
+    QuantDB().init_db()
     
     # 2. 启动调度器
     scheduler_agent = SchedulerAgent()

@@ -24,4 +24,4 @@ def setup_logger(name, log_file, level=logging.INFO):
     return logger
 
 # 全局日志器
-log = setup_logger('quant_spider', 'log/spider.log')
+logger = setup_logger('quant_spider', 'log/spider.log')
