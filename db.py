@@ -279,11 +279,11 @@ class QuantDB:
             top_k: int=20,
             score_only: bool=True,
         ) -> pd.DataFrame:
-        fields = "symbol, date, three_filters_score, double_bottom_score, double_top_score, cup_handle_score" if score_only else "*"
-        sql = f"SELECT {fields} FROM analysis_report WHERE symbol = '{symbol}'"
+        fields = "a.symbol, a.date, b.close, three_filters_score, double_bottom_score, double_top_score, cup_handle_score" if score_only else "*"
+        sql = f"SELECT {fields} FROM analysis_report a left join stock_price b on a.symbol = b.symbol WHERE a.symbol = '{symbol}' AND a.date = substr(b.date, 1, 10) AND b.interval = 'daily'"
         if date is not None:
-            sql += f" AND date = '{date}'"
-        sql += " ORDER BY date DESC"
+            sql += f" AND a.date = '{date}'"
+        sql += " ORDER BY a.date DESC"
         if top_k is not None:
             sql += f" LIMIT {top_k}"
         return self.db.query(sql)
@@ -314,3 +314,5 @@ if __name__ == '__main__':
     #print(df["info"])
     #df = db.query_stock_base("us")
     print(df)
+    #df = db.query_stock_price(symbol, interval="daily", date="2025-10-03")
+    #print(df)

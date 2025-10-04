@@ -37,9 +37,9 @@ class IndicatorCalculator:
 class Strategy:
     name: str = "base"
 
-    def __init__(self, llm:LLMClient):
+    def __init__(self, llm:LLMClient, db:QuantDB=QuantDB()):
         self.llm = llm
-        self.db = QuantDB()
+        self.db = db
 
     def analyze(self, 
             df_day: pd.DataFrame, 
@@ -100,6 +100,7 @@ class Strategy:
             except ValueError:
                 score = None
 
+        # 7. 返回格式化结果
         return {
             "symbol": symbol,
             "date": df_day["date"].iat[-1],
@@ -186,6 +187,7 @@ class DoubleBottomStrategy(Strategy):
 
     def __init__(self, 
             llm:LLMClient,
+            db:QuantDB=QuantDB(),
             window: int = 30, 
             tolerance: float = 0.05
         ):
@@ -193,7 +195,7 @@ class DoubleBottomStrategy(Strategy):
         :param window: 检测的时间窗口（交易日数）
         :param tolerance: 容忍度，例如0.05表示第二个低点可以比第一个低点低5%以内
         """
-        super().__init__(llm)
+        super().__init__(llm=llm, db=db)
         self.window = window
         self.tolerance = tolerance
 
@@ -265,6 +267,7 @@ class DoubleTopStrategy(Strategy):
     
     def __init__(self, 
             llm:LLMClient,
+            db:QuantDB=QuantDB(),
             window: int = 30, 
             tolerance: float = 0.05
         ):
@@ -272,7 +275,7 @@ class DoubleTopStrategy(Strategy):
         :param window: 检测时间窗口
         :param tolerance: 两个顶点容忍度，例如0.05表示第二个高点可以比第一个高点低/高5%以内
         """
-        super().__init__(llm)
+        super().__init__(llm=llm, db=db)
         self.window = window
         self.tolerance = tolerance
 
@@ -342,6 +345,7 @@ class CupHandleStrategy(Strategy):
 
     def __init__(self, 
         llm:LLMClient,
+        db:QuantDB=QuantDB(),
         window: int = 60, 
         tolerance: float = 0.08, 
         handle_window: int = 15
@@ -350,7 +354,7 @@ class CupHandleStrategy(Strategy):
         :param window: 检测时间窗口
         :param handle_ratio: 杯柄回撤比例（相对于杯体深度），常见 <= 0.33
         """
-        super().__init__(llm)
+        super().__init__(llm=llm, db=db)
         self.window = window
         self.tolerance = tolerance
         self.handle_window = handle_window
@@ -449,8 +453,8 @@ class StrategyHelper():
             "double_top", 
             "cup_handle"
         ]
-        self.strategies = [StrategyFactory.create(name, llm=self.llm) for name in strategy_names]
         self.db = QuantDB()
+        self.strategies = [StrategyFactory.create(name, llm=self.llm, db=self.db) for name in strategy_names]
 
     def analysis(self, symbol:str, date:str, update:bool=False):
         date = datetime.strptime(date, "%Y-%m-%d").strftime("%Y-%m-%d")
@@ -494,12 +498,29 @@ class StrategyHelper():
 
 if __name__ == "__main__":
     #LI
-    symbols = ["XPEV", "NIO", "BABA", "NVDA", "TSLA", "TQQQ", "SQQQ", "MSTX", "MSTZ", "PDD", "NBIS", "CRWV", "SE", "HOOD", "BILI", "YINN"]
-    symbols = ["XPEV"]
+    symbols = [
+        "XPEV", 
+        "NIO", 
+        "BABA", 
+        "NVDA", 
+        "TSLA", 
+        "TQQQ", 
+        "SQQQ", 
+        "MSTX", 
+        "MSTZ", 
+        "PDD", 
+        "NBIS", 
+        "CRWV", 
+        "SE", 
+        "HOOD", 
+        "BILI", 
+        "YINN"
+    ]
+    #symbols = ["XPEV"]
     helper = StrategyHelper()
-    helper.analysis("XPEV", "2025-10-03", update=True)
-    #for symbol in symbols:
-    #    helper.update(symbol, 15)
+    #helper.analysis("XPEV", "2025-10-03", update=True)
+    for symbol in symbols:
+        helper.update(symbol, 15)
 
     """
     llm = OpenAIClient()
