@@ -31,6 +31,15 @@ class IndicatorCalculator:
         df["macd"], df["signal"], df["hist"] = macd, signal, hist
         return df
 
+class PriceDataPeroidInvalidError(Exception):
+    def __init__(self, 
+            symbol:str,
+            date:str, 
+            daily_date:str, 
+            week_date:str):
+        self.symbol = symbol
+        super().__init__(f"{symbol} price data invalid: date:{date}, latest_date:{daily_date}, latest_week:{week_date}.")
+
 # =====================
 # 策略基类
 # =====================
@@ -57,7 +66,7 @@ class Strategy:
             week_peroid: int=360,
             date: str=None
         ) -> str:
-        # 1. 获取数据
+        # 1. 获取股票价格数据
         df_day = self.db.query_stock_price(
             symbol, 
             interval="daily",
@@ -70,10 +79,19 @@ class Strategy:
             date=date, 
             top_k=week_peroid
         )
+        
+        # 2. 数据有效性检验
+        latest_day  = df_day['date'].iat[-1].split()[0]
+        latest_week = df_week['date'].iat[-1].split()[0]
+        covered_week = (datetime.strptime(latest_week, "%Y-%m-%d") + timedelta(days=7)).strftime("%Y-%m-%d")
+        if latest_day != date or covered_week < date:
+            raise PriceDataPeroidInvalidError(symbol, date, latest_day, latest_week)
+        
+        # 3. 股票基本信息
         stock_info = self.db.query_stock_info(symbol)
         stock_info = stock_info["info"].iat[0] if isinstance(stock_info, pd.DataFrame) and not stock_info.empty else ""
 
-        # 2. 加指标
+        # 4. 加指标
         df_day = IndicatorCalculator.add_ema_macd(df_day)
         df_week = IndicatorCalculator.add_ema_macd(
             df_week, 
@@ -82,16 +100,16 @@ class Strategy:
             macd_signal=4
         )
 
-        # 3. 策略分析
+        # 5. 策略分析
         analysis = self.analyze(df_day, df_week, stock_info)
 
-        # 4. 构造 prompt
+        # 6. 构造 prompt
         prompt = self.build_prompt(analysis)
 
-        # 5. 调用 LLM
+        # 7. 调用 LLM
         report = self.llm.chat(prompt)
         
-        # 6. 提取 score
+        # 8. 提取 score
         score = None
         match = re.search(r"<score>([-+]?\d*\.?\d+)</score>", report)
         if match:
@@ -100,7 +118,7 @@ class Strategy:
             except ValueError:
                 score = None
 
-        # 7. 返回格式化结果
+        # 9. 返回格式化结果
         return {
             "symbol": symbol,
             "date": df_day["date"].iat[-1],
@@ -470,6 +488,10 @@ class StrategyHelper():
                 res = strategy.quant(symbol, date=date)
                 data[f"{res['strategy']}_score"]  = res["score"], 
                 data[f"{res['strategy']}_report"] = res["report"]
+            except PriceDataPeroidInvalidError as e:
+                logger.error(e)
+                data = dict()
+                break
             except Exception as e:
                 logger.error(f"{symbol} {date} quant error:{e}")
 

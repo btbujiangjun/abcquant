@@ -257,7 +257,7 @@ class QuantDB:
         if interval is not None:
             sql += f" AND a.interval = '{interval}'"
         if date is not None:
-            sql += f" AND a.date <= '{date}'"
+            sql += f" AND SUBSTR(a.date, 1, 10) <= '{date}'"
         sql += " ORDER BY a.date DESC"
         if top_k:
             sql += f" LIMIT {top_k}"
@@ -269,7 +269,7 @@ class QuantDB:
 
         return df
 
-    def lastest_stock_price(self, symbol: str, interval=str) -> str:
+    def latest_stock_price(self, symbol: str, interval=str) -> pd.DataFrame:
         sql = f"SELECT date FROM stock_price WHERE symbol = '{symbol}' AND interval = '{interval}' ORDER BY date DESC LIMIT 1"
         return self.db.query(sql)
 
@@ -280,7 +280,7 @@ class QuantDB:
             score_only: bool=True,
         ) -> pd.DataFrame:
         fields = "a.symbol, a.date, b.close, three_filters_score, double_bottom_score, double_top_score, cup_handle_score" if score_only else "*"
-        sql = f"SELECT {fields} FROM analysis_report a left join stock_price b on a.symbol = b.symbol WHERE a.symbol = '{symbol}' AND a.date = substr(b.date, 1, 10) AND b.interval = 'daily'"
+        sql = f"SELECT {fields} FROM analysis_report a left join stock_price b on a.symbol = b.symbol WHERE a.symbol = '{symbol}' AND a.date = SUBSTR(b.date, 1, 10) AND b.interval = 'daily'"
         if date is not None:
             sql += f" AND a.date = '{date}'"
         sql += " ORDER BY a.date DESC"

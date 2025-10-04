@@ -30,6 +30,12 @@ USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
 ]
 
+OpenAI_CONFIG = {
+    "model": "gpt-4o-mini",
+    "base_url": "https://free.v36.cm/v1/",    
+    "api_key": "sk-p1JBAYtwircCFdGP407a6185DdA64878BaF9F1Bd731349F6"
+}
+
 # 随机延迟范围 (秒)
 DELAY_RANGE = (1, 5)
 
