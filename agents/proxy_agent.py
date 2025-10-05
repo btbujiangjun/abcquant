@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from random import choice
 from aiohttp import ClientTimeout, TCPConnector
 
-#from ..utils.logger import log
 
 @dataclass
 class Proxy:

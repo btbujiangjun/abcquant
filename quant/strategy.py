@@ -474,13 +474,13 @@ class StrategyHelper():
         self.db = QuantDB()
         self.strategies = [StrategyFactory.create(name, llm=self.llm, db=self.db) for name in strategy_names]
 
-    def analysis(self, symbol:str, date:str, update:bool=False):
+    def analysis(self, symbol:str, date:str, update:bool=False) -> bool:
         date = datetime.strptime(date, "%Y-%m-%d").strftime("%Y-%m-%d")
         if not update:
             df = self.db.query_analysis_report(symbol, date)         
             if isinstance(df, pd.DataFrame) and not df.empty:
                 logger.info(f"Analysis report {symbol} at {date} exists.")
-                return
+                return True
         
         data = dict()
         for strategy in self.strategies:
@@ -489,19 +489,18 @@ class StrategyHelper():
                 data[f"{res['strategy']}_score"]  = res["score"], 
                 data[f"{res['strategy']}_report"] = res["report"]
             except PriceDataPeroidInvalidError as e:
-                logger.error(e)
-                data = dict()
-                break
+                logger.warning(e)
+                return False
             except Exception as e:
                 logger.error(f"{symbol} {date} quant error:{e}")
+                return False
 
         if len(data) > 0:
             data["symbol"]  = symbol
             data["date"]    = date
             self.db.update_analysis_report(pd.DataFrame(data))
             logger.info(f"Finish analysis {symbol} at {date.split()[0]}")
-        else:
-            logger.error(f"Quant {symbol} {date} skipped.")
+            return True
 
     def update(self, symbol: str, days: int=10):
         today = datetime.today()
@@ -514,18 +513,46 @@ class StrategyHelper():
         
         while(date < today):
             date_str = date.strftime("%Y-%m-%d")
-            self.analysis(symbol, date_str)
+            if self.analysis(symbol, date_str):
+                logger.info(F"Analysis report {symbol} at {date_str} finished.")
             date = date + timedelta(days=1)
-            logger.info(F"Analysis report {symbol} at {date_str} finished.")
+
+    def update_latest(self):
+        symbols = [
+            "XPEV",
+            "LI", 
+            "NIO", 
+            "BABA", 
+            "NVDA", 
+            "TSLA", 
+            "QQQ",
+            "TQQQ", 
+            "SQQQ", 
+            "MSTX", 
+            "MSTZ", 
+            "PDD", 
+            "NBIS", 
+            "CRWV", 
+            "SE", 
+            "HOOD", 
+            "BILI", 
+            "YINN",
+            "IXIC"
+        ]
+        #symbols = ["XPEV"]
+        for symbol in symbols:
+            self.update(symbol, 15)
 
 if __name__ == "__main__":
     #LI
     symbols = [
-        "XPEV", 
+        "XPEV",
+        "LI", 
         "NIO", 
         "BABA", 
         "NVDA", 
         "TSLA", 
+        "QQQ",
         "TQQQ", 
         "SQQQ", 
         "MSTX", 
@@ -536,7 +563,8 @@ if __name__ == "__main__":
         "SE", 
         "HOOD", 
         "BILI", 
-        "YINN"
+        "YINN",
+        "IXIC"
     ]
     #symbols = ["XPEV"]
     helper = StrategyHelper()

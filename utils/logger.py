@@ -1,6 +1,7 @@
 # utils/logger.py
 import os
 import logging
+from colorlog import ColoredFormatter
 
 def setup_logger(name, log_file, level=logging.INFO):
     log_dir = os.path.dirname(log_file)
@@ -8,8 +9,19 @@ def setup_logger(name, log_file, level=logging.INFO):
         os.makedirs(log_dir)
     
     """设置一个带文件和控制台输出的日志器"""
-    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-    
+    #formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    formatter = ColoredFormatter(
+        "%(log_color)s[%(asctime)s] [%(levelname)s] %(message)s",
+        datefmt="%H:%M:%S",
+        log_colors={
+            'DEBUG':    'cyan',
+            'INFO':     'green',
+            'WARNING':  'yellow',
+            'ERROR':    'red',
+            'CRITICAL': 'bold_red',
+        }
+    )   
+ 
     handler = logging.FileHandler(log_file)
     handler.setFormatter(formatter)
 

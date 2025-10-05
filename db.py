@@ -296,8 +296,17 @@ class QuantDB:
 
 
 if __name__ == '__main__':
+    # 显示所有行
+    pd.set_option('display.max_rows', None)
+    # 显示所有列
+    pd.set_option('display.max_columns', None)
+    # 每列完整显示（不省略中间内容）
+    pd.set_option('display.max_colwidth', None)
+    # 不折行显示
+    pd.set_option('display.expand_frame_repr', False)
+
     db = QuantDB()
-    symbol = "XPEV"
+    symbol = "BABA"
    
     #db.init_db()
     """
