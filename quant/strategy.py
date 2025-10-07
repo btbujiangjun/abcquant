@@ -499,7 +499,7 @@ class StrategyHelper():
             data["symbol"]  = symbol
             data["date"]    = date
             self.db.update_analysis_report(pd.DataFrame(data))
-            logger.info(f"Finish analysis {symbol} at {date.split()[0]}")
+            logger.info(f"✅ analysis {symbol} at {date.split()[0]}")
             return True
 
     def update(self, symbol: str, days: int=10):
@@ -564,7 +564,10 @@ if __name__ == "__main__":
         "HOOD", 
         "BILI", 
         "YINN",
-        "IXIC"
+        "IXIC",
+        "MU",
+        "AMD",
+        "INTC"
     ]
     #symbols = ["XPEV"]
     helper = StrategyHelper()

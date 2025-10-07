@@ -102,22 +102,6 @@ class DB:
                 except Exception as e:
                     logger.error(f"Error save to {table_name}: {e}")
                     raise
-
-            """
-            with self.engine.begin() as conn:
-                try:
-                    for row in df.to_dict(orient='records'):
-                        stmt = insert(table).values(**row)
-                        stmt = stmt.on_conflict_do_update(
-                            index_elements=conflict_cols,
-                            set_={k: v for k, v in row.items() if k not in conflict_cols}
-                        )
-                        conn.execute(stmt)
-                    logger.info(f"Engine mode: table {table_name} upsert {len(df)} rows.")
-                except Exception as e:
-                    logger.error(f"Error save to {table_name}:{e}")
-                    raise
-            """
         else:
             """无唯一约束键模式, 将 pandas DataFrame 保存到数据库"""
             with self.create_connection() as conn:
@@ -236,7 +220,7 @@ class QuantDB:
         self.db.update_sql_params(sql, keyvalues.values())
 
     def query_stock_info(self, symbol:str):
-        sql = f"SELECT * FROM stock_info WHERE symbol = '{symbol}'"
+        sql = f"SELECT a.*, b.name FROM stock_info a left join stock_base b on a.symbol = b.symbol WHERE a.symbol = '{symbol}'"
         return self.db.query(sql)
 
     def update_stock_price(self, df):
@@ -279,7 +263,7 @@ class QuantDB:
             top_k: int=20,
             score_only: bool=True,
         ) -> pd.DataFrame:
-        fields = "a.symbol, a.date, b.close, three_filters_score, double_bottom_score, double_top_score, cup_handle_score" if score_only else "*"
+        fields = "a.symbol, a.date, b.close, three_filters_score, double_bottom_score, double_top_score, cup_handle_score" if score_only else "a.*, b.close"
         sql = f"SELECT {fields} FROM analysis_report a left join stock_price b on a.symbol = b.symbol WHERE a.symbol = '{symbol}' AND a.date = SUBSTR(b.date, 1, 10) AND b.interval = 'daily'"
         if date is not None:
             sql += f" AND a.date = '{date}'"
@@ -306,7 +290,7 @@ if __name__ == '__main__':
     pd.set_option('display.expand_frame_repr', False)
 
     db = QuantDB()
-    symbol = "BABA"
+    symbol = "LI"
    
     #db.init_db()
     """

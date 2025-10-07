@@ -6,19 +6,11 @@ from utils.logger import logger
 from spiders.stock_spider import BaseStockSpider, YF_US_Spider
 from quant.strategy import StrategyHelper
 
-def us_spider_price_job(
-        spider:BaseStockSpider, 
-        name:str="YF_US_Spider_price"
-    ):
+def us_spider_job(name:str="YF_US_Spider"):
+    spider = YF_US_Spider()
     logger.info(f"job {name} starting...")
+    #spider.update_stock_info()
     spider.update_latest()
- 
-def us_spider_info_job(
-        spider:BaseStockSpider, 
-        name:str="YF_US_Spider_info"
-    ):
-    logger.info(f"job {name} starting...")
-    spider.update_stock_info()
  
 def strategy_job(name:str="LLMStrategy"):
     logger.info(f"job {name} starting...")
@@ -35,18 +27,11 @@ class Scheduler:
         # 每天早上9点执行一次
         #self.scheduler.add_job(daily_job, 'cron', hour=hour, minute=minute)
         #self.scheduler.add_job(daily_job, 'interval', seconds=5, kwargs={'name':'Bob'})
-        spider = YF_US_Spider()
         self.scheduler.add_job(
-            us_spider_price_job, 
+            us_spider_job, 
             "date",
             run_date=datetime.now(),
-            kwargs={"spider":spider, "name":"Yfinance US spider price"}
-        )
-        self.scheduler.add_job(
-            us_spider_info_job, 
-            "date",
-            run_date=datetime.now(),
-            kwargs={"spider":spider, "name":"Yfinance US spider info"}
+            kwargs={"name":"Yfinance US spider price"}
         )
         self.scheduler.add_job(
             strategy_job, 
