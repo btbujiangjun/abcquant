@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>股票K线分析系统</title>
+    <title>基于LLM的股票K线分析系统</title>
     <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f4f6f8; margin:0; padding:20px; }
@@ -22,7 +22,7 @@
 </head>
 <body>
 <div class="container">
-    <h1>📈 股票K线查询系统</h1>
+    <h1>📈 基于LLM的股票K线分析系统</h1>
     <div class="toolbar">
         <select id="stockSelector"></select>
         <input type="text" id="stockSearch" placeholder="输入股票代码或名称搜索">
@@ -90,7 +90,7 @@ function getColorByScore(score){
 async function loadStocks(){
     const response = await fetch('/stocks'); const stocks=await response.json();
     const selector=document.getElementById('stockSelector'); selector.innerHTML='<option value="">选择股票</option>';
-    stocks.forEach(stock=>{const opt=document.createElement('option'); opt.value=stock.symbol; opt.textContent=`${stock.symbol} - ${stock.name}`; selector.appendChild(opt);});
+    stocks.forEach(stock=>{const opt=document.createElement('option'); opt.value=stock.symbol; opt.textContent=`${stock.symbol}`; selector.appendChild(opt);});
     selector.onchange=()=>{const s=selector.value; if(s){currentSymbol=s; searchStock(s); document.getElementById('stockSearch').value=s;}};
     if(stocks.length>0){ currentSymbol=stocks[0].symbol; selector.value=currentSymbol; document.getElementById('stockSearch').value=currentSymbol; searchStock(currentSymbol);}
 }
@@ -102,7 +102,7 @@ async function loadStockInfo(symbol){
     if(!response.ok) return;
     const info=await response.json();
     const detailDiv=document.getElementById('stockInfoDetail');
-    detailDiv.innerHTML=`<b>${info.symbol}</b> - ${info.name}<br>行业: ${info.industry||'未知'} | 市值: ${formatMarketCap(info.market_cap)}<br>info: ${info.info||'-'}`;
+    detailDiv.innerHTML=`<b>${info.symbol}</b> - ${info.name}<br>行业: <b>${info.industry||'未知'}</b> | 市值:<b>${formatMarketCap(info.market_cap)}</b><br>info: ${info.info||'-'}`;
     const summaryDiv=document.getElementById('stockInfoSummary');
     summaryDiv.onclick=()=>{if(detailDiv.style.display==='none'){detailDiv.style.display='block'; summaryDiv.innerText='点击收起股票基本信息';} else {detailDiv.style.display='none'; summaryDiv.innerText='点击查看股票基本信息';}};
 }
