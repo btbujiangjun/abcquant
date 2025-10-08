@@ -5,7 +5,38 @@ import os
 FINNHUB_API_KEY = "YOUR_FINNHUB_API_KEY"
 
 # 爬取股票列表
-STOCK_TICKERS = ["XPEV", "TSLA", "AAPL", "MSFT"]
+CRITICAL_STOCKS = [
+    {"name":"XPEV", "exchange":"us"},
+    {"name":"LI", "exchange":"us"},
+    {"name":"NIO", "exchange":"us"},
+    {"name":"BABA", "exchange":"us"},
+    {"name":"MU", "exchange":"us"},
+    {"name":"TQQQ", "exchange":"us"},
+    {"name":"SQQQ", "exchange":"us"},
+    {"name":"QQQ", "exchange":"us"},
+    {"name":"NVDA", "exchange":"us"},
+    {"name":"TSLA", "exchange":"us"},
+    {"name":"PDD", "exchange":"us"},
+    {"name":"NBIS", "exchange":"us"},
+    {"name":"CRWV", "exchange":"us"},
+    {"name":"MSTX", "exchange":"us"},
+    {"name":"MSTZ", "exchange":"us"},
+    {"name":"SE", "exchange":"us"},
+    {"name":"HOOD", "exchange":"us"},
+    {"name":"BILI", "exchange":"us"},
+    {"name":"YINN", "exchange":"us"},
+    {"name":"IXIC", "exchange":"us"},
+    {"name":"AMD", "exchange":"us"},
+    {"name":"INTC", "exchange":"us"},
+    {"name":"META", "exchange":"us"},
+    {"name":"GOOG", "exchange":"us"},
+    {"name":"AMZN", "exchange":"us"},
+    {"name":"TSM", "exchange":"us"},
+    {"name":"AVGO", "exchange":"us"},
+    {"name":"BIDU", "exchange":"us"},
+]
+
+CRITICAL_STOCKS_US = [stock["name"] for stock in CRITICAL_STOCKS if stock["exchange"]=="us"]
 
 # 数据保存路径
 DATA_PATH = "data"

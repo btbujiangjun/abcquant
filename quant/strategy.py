@@ -3,8 +3,9 @@ import talib
 import pandas as pd
 from typing import Type, Dict, Any
 from datetime import datetime, timedelta
-from utils.logger import logger
 from db import QuantDB
+from utils.logger import logger
+from config import CRITICAL_STOCKS_US
 from quant.llm import LLMClient, OpenAIClient
 
 
@@ -516,31 +517,9 @@ class StrategyHelper():
                 logger.info(F"✅Analysis report {symbol} at {date_str} finished.")
             date = date + timedelta(days=1)
 
-    def update_latest(self):
-        symbols = [
-            "XPEV",
-            "LI", 
-            "NIO", 
-            "BABA", 
-            "NVDA", 
-            "TSLA", 
-            "QQQ",
-            "TQQQ", 
-            "SQQQ", 
-            "MSTX", 
-            "MSTZ", 
-            "PDD", 
-            "NBIS", 
-            "CRWV", 
-            "SE", 
-            "HOOD", 
-            "BILI", 
-            "YINN",
-            "IXIC"
-        ]
-        #symbols = ["XPEV"]
+    def update_latest(self, symbols:list[str]=CRITICAL_STOCKS_US, days:int=2, update:bool=False):
         for symbol in symbols:
-            self.update(symbol, 15)
+            self.update(symbol, days=days, update=update)
 
 if __name__ == "__main__":
     #LI

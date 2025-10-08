@@ -13,6 +13,7 @@ import akshare as ak
 import yfinance as yf
 
 from db import QuantDB
+from config import CRITICAL_STOCKS_US
 from utils.logger import logger
 
 # =====================
@@ -92,16 +93,25 @@ class BaseStockSpider(ABC):
             df = self.fetch_stock_data(symbol, interval, latest_date, self.today)
             self.update_stock_price(df)
 
-    def update_latest(self, workers:int=1):
+    def update_latest(self, symbols:list[str]=None, workers:int=1):
         """更新全部股票价格数据（支持并发）"""
-        symbols = self.query_stock_base()
+        symbols = symbols or self.query_stock_base()
         logger.info(f"[{self.__class__.__name__}] {len(symbols)} stocks in queue...")
-       
+      
+        def task(sym: str):
+            """单个任务执行逻辑"""
+            try:
+                # ① 拉取基本信息
+                self.fetch_stock_info([sym])
+                # ② 更新最新价格数据
+                self.latest_stock_data(sym)
+                return (sym, True, None)
+            except Exception as e:
+                return (sym, False, str(e))
+ 
         done_count, total = 0, len(symbols) 
         with ThreadPoolExecutor(max_workers=workers) as executor:
-            for sym in symbols:
-                futures = {executor.submit(self.fetch_stock_info([sym]))}
-                futures = {executor.submit(self.latest_stock_data(sym))}
+            futures = {executor.submit(task, sym): sym for sym in symbols}
             for future in as_completed(futures):
                 sym = futures[future]
                 try:
@@ -117,10 +127,10 @@ class BaseStockSpider(ABC):
     def query_stock_base(self) -> List[str]: ...
 
     @abstractmethod
-    def update_stock_info(self, batch_size: int = 50): ...
+    def update_stock_info(self, symbols:list[str]=None, batch_size: int = 50): ...
     
     @abstractmethod
-    def fetch_stock_info(self, symbols:List[str], batch_size: int=50): ...
+    def fetch_stock_info(self, symbols:list[str], batch_size: int=50): ...
     
     @abstractmethod
     def fetch_stock_data(self, 
@@ -160,30 +170,7 @@ class YF_US_Spider(BaseStockSpider):
             "DJI": "^DJI",     # 道指
             "SPX": "^GSPC",    # 标普500
         }
-        self.extend_symbols = [
-            "XPEV",
-            "NIO",
-            "LI",
-            "BABA",
-            "NVDA",
-            "TSLA",
-            "QQQ",
-            "TQQQ",
-            "SQQQ",
-            "MSTX",
-            "MSTZ",
-            "PDD",
-            "NBIS",
-            "CRWV",
-            "SE",
-            "HOOD",
-            "BILI",
-            "YINN",
-            "IXIC",
-            "MU",
-            "AMD",
-            "INTC"
-        ]
+        self.extend_symbols = CRITICAL_STOCKS_US
 
     def _ticker_alias(self, ticker:str) -> str:
         return self.TICKER_ALIAS[ticker] if ticker in self.TICKER_ALIAS else ticker
@@ -243,11 +230,11 @@ class YF_US_Spider(BaseStockSpider):
         symbols.extend(self._local_stock_base(exchange="us"))        
         return symbols
 
-    def update_stock_info(self, batch_size: int=50):
-        symbols = self.query_stock_base()
+    def update_stock_info(self, symbols:list[str]=None, batch_size: int=50):
+        symbols = symbols or self.query_stock_base()
         self.fetch_stock_info(symbols, batch_size=batch_size)
 
-    def fetch_stock_info(self, symbols:List[str], batch_size:int=50):
+    def fetch_stock_info(self, symbols:list[str], batch_size:int=50):
         field_map = {
             "status": "marketState",
             "market_cap": "marketCap",
@@ -287,7 +274,7 @@ class YF_US_Spider(BaseStockSpider):
                     for key, data_type in field_map.items():
                         keyvalues[key] = info.get(data_type, 0) 
                     self.db.update_stock_info(keyvalues)
-                    logger.info(f"Update {s} info: {i+idx}/{len(symbols)}")
+                    logger.info(f"✅Update {s} info: {i+idx+1}/{len(symbols)}")
             except Exception as e:
                 logger.error(f"Update info error: {e}")
 
@@ -364,7 +351,7 @@ class AK_A_Spider(BaseStockSpider):
     def query_stock_base(self) -> List[str]:
         return self._local_stock_base(exchange="cn") 
 
-    def update_stock_info(self, batch_size: int = 50):
+    def update_stock_info(self, symbols:list[str]=None, batch_size: int = 50):
         raise NotImplementedError 
 
     def refresh_stock_base(self) -> bool:
@@ -439,7 +426,7 @@ class AK_HK_Spider(BaseStockSpider):
     def query_stock_base(self) -> List[str]:
         return self._local_stock_base(exchange="hk") 
 
-    def update_stock_info(self, batch_size: int = 50):
+    def update_stock_info(self, symbols:list[str]=None, batch_size: int = 50):
         raise NotImplementedError 
     
     def refresh_stock_base(self) -> bool:
