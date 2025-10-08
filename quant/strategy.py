@@ -499,22 +499,21 @@ class StrategyHelper():
             data["symbol"]  = symbol
             data["date"]    = date
             self.db.update_analysis_report(pd.DataFrame(data))
-            logger.info(f"✅ analysis {symbol} at {date.split()[0]}")
             return True
 
-    def update(self, symbol: str, days: int=10):
+    def update(self, symbol: str, days: int=10, update=False):
         today = datetime.today()
-        df = self.db.query_analysis_report(symbol, top_k=1)        
-        if isinstance(df, pd.DataFrame) and not df.empty:
-            date = datetime.strptime(df["date"].iat[-1], "%Y-%m-%d")
-            data = date + timedelta(days=1)
-        else:
-            date = today - timedelta(days=days)      
+        date = today - timedelta(days=days)      
+        if not update:
+            df = self.db.query_analysis_report(symbol, top_k=1)        
+            if isinstance(df, pd.DataFrame) and not df.empty:
+                date = datetime.strptime(df["date"].iat[-1], "%Y-%m-%d")
+                date = date + timedelta(days=1)
         
         while(date < today):
             date_str = date.strftime("%Y-%m-%d")
-            if self.analysis(symbol, date_str):
-                logger.info(F"Analysis report {symbol} at {date_str} finished.")
+            if self.analysis(symbol, date_str, update=update):
+                logger.info(F"✅Analysis report {symbol} at {date_str} finished.")
             date = date + timedelta(days=1)
 
     def update_latest(self):
@@ -569,11 +568,11 @@ if __name__ == "__main__":
         "AMD",
         "INTC"
     ]
-    #symbols = ["XPEV"]
+    symbols, update = ["XPEV"], True
     helper = StrategyHelper()
     #helper.analysis("XPEV", "2025-10-03", update=True)
     for symbol in symbols:
-        helper.update(symbol, 15)
+        helper.update(symbol, 15, update=update)
 
     """
     llm = OpenAIClient()
