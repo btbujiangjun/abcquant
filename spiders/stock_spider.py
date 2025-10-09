@@ -15,6 +15,7 @@ import yfinance as yf
 from db import QuantDB
 from config import CRITICAL_STOCKS_US
 from utils.logger import logger
+from core.interval import INTERVAL, MIN_INTERVAL, DAY_INTERVAL
 
 # =====================
 # 通用基类
@@ -30,9 +31,9 @@ class BaseStockSpider(ABC):
 
         # 统一的数据字段格式
         self.data_format = ["symbol", "interval", "date", "open", "high", "low", "close", "volume", "amount"]
-        self.min_intervals = ["1min", "5min", "15min", "30min", "60min"]
-        self.day_intervals = ["daily", "weekly", "monthly"]
-        self.intervals = self.min_intervals + self.day_intervals
+        self.min_intervals = MIN_INTERVAL 
+        self.day_intervals = DAY_INTERVAL
+        self.intervals = INTERVAL 
 
     # ========= 基础工具 =========
     def ak_datestring_format(self, date_str:str) -> str:

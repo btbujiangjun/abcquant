@@ -36,7 +36,7 @@ class Scheduler:
         self.scheduler.add_job(
             hour_job, 
             'interval', 
-            seconds=3600,
+            seconds=60,
             kwargs={"name":"Hour job for critical stocks"}
         )
         self.scheduler.add_job(

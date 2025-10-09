@@ -251,6 +251,7 @@ class QuantDB:
             ascending=True
         ).reset_index(drop=True)
 
+        logger.info(f"{len(df)}...sql:{sql}")
         return df
 
     def latest_stock_price(self, symbol: str, interval=str) -> pd.DataFrame:

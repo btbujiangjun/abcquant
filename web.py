@@ -7,6 +7,8 @@ from fastapi import Request
 
 from db import QuantDB
 from utils.logger import logger
+from core.interval import DAY_INTERVAL
+from config import CRITICAL_STOCKS_US
 
 app = FastAPI()
 db = QuantDB()
@@ -29,6 +31,7 @@ def get_index(request: Request):
 @app.get("/stocks")
 def get_us_stocks():
     """获取股票列表"""
+    return [{"symbol": symbol, "name": symbol} for symbol in CRITICAL_STOCKS_US]
     df = db.query_stock_base(exchange="us", top_k=500)
     if df.empty:
         return []
@@ -39,8 +42,11 @@ def get_us_stocks():
 def get_klines(symbol: str, interval: str = "daily"):
     """获取K线数据"""
     df = db.query_stock_price(symbol, interval=interval)
+    print(df.head())
     if df.empty:
         raise HTTPException(status_code=404, detail="未找到该股票的K线数据")
+
+    print(df.head())
 
     # 自动补成交额 amount 字段
     if "amount" not in df.columns:
@@ -48,7 +54,7 @@ def get_klines(symbol: str, interval: str = "daily"):
 
     return [
         {
-            "date": row["date"].split()[0],
+            "date": row["date"].split()[0] if interval in DAY_INTERVAL else row["date"].replace(" ", "T"),
             "open": float(row["open"]),
             "high": float(row["high"]),
             "low": float(row["low"]),
