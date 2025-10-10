@@ -186,6 +186,7 @@ class QuantDB:
                 double_top_report TEXT,
                 cup_handle_score double,
                 cup_handle_report TEXT,
+                update_time TEXT,
                 UNIQUE(symbol, date)
             )   
             """,
@@ -263,7 +264,7 @@ class QuantDB:
             top_k: int=20,
             score_only: bool=True,
         ) -> pd.DataFrame:
-        fields = "a.symbol, a.date, b.close, three_filters_score, double_bottom_score, double_top_score, cup_handle_score" if score_only else "a.*, b.close"
+        fields = "a.symbol, a.date, b.close, three_filters_score, double_bottom_score, double_top_score, cup_handle_score, update_time" if score_only else "a.*, b.close"
         sql = f"SELECT {fields} FROM analysis_report a left join stock_price b on a.symbol = b.symbol WHERE a.symbol = '{symbol}' AND a.date = SUBSTR(b.date, 1, 10) AND b.interval = 'daily'"
         if date is not None:
             sql += f" AND a.date = '{date}'"
@@ -280,6 +281,15 @@ class QuantDB:
 
 
 if __name__ == '__main__':
+
+    db = DB("./data/quant_data.db")
+    #sql = "ALTER TABLE analysis_report ADD COLUMN update_time TEXT"
+    #db.ddl(sql)
+    sql = "select * from analysis_report where symbol='XPEV' order BY date DESC LIMIT 10"
+    df = db.query(sql)
+    print(df.head())
+
+    """
     # 显示所有行
     pd.set_option('display.max_rows', None)
     # 显示所有列
@@ -294,11 +304,14 @@ if __name__ == '__main__':
    
     #db.init_db()
     """
+
+    """
     logger.info("Database and tables created successfully.")
     df= db.query_stock_price("XPEV", "1min")
     pd.set_option('display.max_columns', None)  # 显示所有列
     pd.set_option('display.max_rows', None) 
     print(df)
+    """
     """
     #database = DB("./data/quant_data.db")
     #database.update_sql(f"DELETE FROM stock_base where exchange != 'us'")
@@ -309,3 +322,6 @@ if __name__ == '__main__':
     print(df)
     #df = db.query_stock_price(symbol, interval="daily", date="2025-10-03")
     #print(df)
+    """
+
+

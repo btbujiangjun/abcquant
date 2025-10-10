@@ -1,4 +1,5 @@
 import re
+import json
 import talib
 import pandas as pd
 from typing import Type, Dict, Any
@@ -91,6 +92,13 @@ class Strategy:
         # 3. 股票基本信息
         stock_info = self.db.query_stock_info(symbol)
         stock_info = stock_info["info"].iat[0] if isinstance(stock_info, pd.DataFrame) and not stock_info.empty else ""
+        try:
+            data = json.loads(stock_info)
+            data["currentPrice"] = latest_day["close"]
+            stock_info = json.dumps(data, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"{symbol} update current price error:{e}")
+
 
         # 4. 加指标
         df_day = IndicatorCalculator.add_ema_macd(df_day)
@@ -499,6 +507,7 @@ class StrategyHelper():
         if len(data) > 0:
             data["symbol"]  = symbol
             data["date"]    = date
+            data["update_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             self.db.update_analysis_report(pd.DataFrame(data))
             return True
 

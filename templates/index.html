@@ -171,7 +171,7 @@ async function searchStock(symbol=null){
         headerTr.innerHTML=`<th>日期</th><th>收盘价</th><th>📊滤网</th><th>滤网报告</th><th>🔽双底</th><th>双底报告</th><th>🔼双顶</th><th>双顶报告</th><th>🏺杯柄</th><th>杯柄报告</th>`;
         tbody.appendChild(headerTr);
         reportData.forEach(row=>{const tr=document.createElement('tr'); tr.innerHTML=`
-            <td>${row.date}</td>
+            <td><b>${row.date}</b></br>更新:${row.update_time}</td>
             <td>${row.price?.toFixed(2)||'-'}</td>
             <td style="color:${getColorByScore(row.three_filters_score)}; font-size:20px">${row.three_filters_score??'-'}</td>
             <td style="vertical-align: top;">${showReport(row.three_filters_report)||'-'}</td>

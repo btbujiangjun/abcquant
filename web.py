@@ -78,6 +78,7 @@ def get_analysis_report(symbol: str):
             "symbol": row["symbol"],
             "date": row["date"].split()[0],
             "price": row["close"],
+            "update_time": row["update_time"],
             "three_filters_score": row.get("three_filters_score"),
             "three_filters_report": row.get("three_filters_report"),
             "double_bottom_score": row.get("double_bottom_score"),

@@ -37,16 +37,16 @@ class Scheduler:
             hour_job, 
             'interval', 
             seconds=3600,
-            #run_date=datetime.now(),
+            next_run_time=datetime.now(),
             kwargs={"name":"Hour job for critical stocks"}
         )
         self.scheduler.add_job(
             us_spider_job, 
-            "date",
-            run_date=datetime.now(),
-            #"cron",
-            #hour=12,
-            #minute=0,
+            #"date",
+            #run_date=datetime.now(),
+            "cron",
+            hour=12,
+            minute=0,
             kwargs={"name":"Yfinance US spider price"}
         )
         """
