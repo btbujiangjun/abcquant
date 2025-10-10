@@ -36,22 +36,27 @@ class Scheduler:
         self.scheduler.add_job(
             hour_job, 
             'interval', 
-            seconds=60,
+            seconds=3600,
+            #run_date=datetime.now(),
             kwargs={"name":"Hour job for critical stocks"}
         )
         self.scheduler.add_job(
             us_spider_job, 
             "date",
             run_date=datetime.now(),
+            #"cron",
+            #hour=12,
+            #minute=0,
             kwargs={"name":"Yfinance US spider price"}
         )
+        """
         self.scheduler.add_job(
             strategy_job, 
             "date",
             run_date=datetime.now(),
             kwargs={"name":"LLM Strategy"}
         )
-
+        """
         logger.info("Scheduler Agent: Scheduler started.")
         self.scheduler.start()
  

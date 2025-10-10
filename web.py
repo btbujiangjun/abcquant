@@ -42,7 +42,6 @@ def get_us_stocks():
 def get_klines(symbol: str, interval: str = "daily"):
     """获取K线数据"""
     df = db.query_stock_price(symbol, interval=interval)
-    print(df.head())
     if df.empty:
         raise HTTPException(status_code=404, detail="未找到该股票的K线数据")
 
