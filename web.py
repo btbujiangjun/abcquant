@@ -45,8 +45,6 @@ def get_klines(symbol: str, interval: str = "daily"):
     if df.empty:
         raise HTTPException(status_code=404, detail="未找到该股票的K线数据")
 
-    print(df.head())
-
     # 自动补成交额 amount 字段
     if "amount" not in df.columns:
         df["amount"] = df["close"] * df.get("volume", 0)

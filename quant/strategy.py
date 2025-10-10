@@ -94,7 +94,7 @@ class Strategy:
         stock_info = stock_info["info"].iat[0] if isinstance(stock_info, pd.DataFrame) and not stock_info.empty else ""
         try:
             data = json.loads(stock_info)
-            data["currentPrice"] = latest_day["close"]
+            data["currentPrice"] = df_day['close'].iat[-1]
             stock_info = json.dumps(data, ensure_ascii=False)
         except Exception as e:
             logger.error(f"{symbol} update current price error:{e}")
@@ -523,7 +523,7 @@ class StrategyHelper():
         while(date < today):
             date_str = date.strftime("%Y-%m-%d")
             if self.analysis(symbol, date_str, update=update):
-                logger.info(F"✅Analysis report {symbol} at {date_str} finished.")
+                logger.info(F"⚠️ ✅Analysis report {symbol} at {date_str} finished.")
             date = date + timedelta(days=1)
 
     def update_latest(self, symbols:list[str]=CRITICAL_STOCKS_US, days:int=2, update:bool=False):

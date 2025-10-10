@@ -49,14 +49,13 @@ class Scheduler:
             minute=0,
             kwargs={"name":"Yfinance US spider price"}
         )
-        """
         self.scheduler.add_job(
             strategy_job, 
             "date",
             run_date=datetime.now(),
             kwargs={"name":"LLM Strategy"}
         )
-        """
+        
         logger.info("Scheduler Agent: Scheduler started.")
         self.scheduler.start()
  
