@@ -5,6 +5,7 @@ import pandas as pd
 from typing import Type, Dict, Any
 from datetime import datetime, timedelta
 from db import QuantDB
+from utils.time import *
 from utils.logger import logger
 from config import CRITICAL_STOCKS_US
 from quant.llm import LLMClient, OpenAIClient
@@ -85,7 +86,7 @@ class Strategy:
         # 2. 数据有效性检验
         latest_day  = df_day['date'].iat[-1].split()[0]
         latest_week = df_week['date'].iat[-1].split()[0]
-        covered_week = (datetime.strptime(latest_week, "%Y-%m-%d") + timedelta(days=7)).strftime("%Y-%m-%d")
+        covered_week = days_delta_yyyymmdd(latest_week, 7) 
         if latest_day != date or covered_week < date:
             raise PriceDataPeroidInvalidError(symbol, date, latest_day, latest_week)
         
@@ -94,8 +95,10 @@ class Strategy:
         stock_info = stock_info["info"].iat[0] if isinstance(stock_info, pd.DataFrame) and not stock_info.empty else ""
         try:
             data = json.loads(stock_info)
-            data["currentPrice"] = df_day['close'].iat[-1]
-            stock_info = json.dumps(data, ensure_ascii=False)
+            #用周期内最后一天收盘价格替换实时价格数据，避免数据错乱
+            if not is_yesterday(date): 
+                data["currentPrice"] = df_day['close'].iat[-1]
+                stock_info = json.dumps(data, ensure_ascii=False)
         except Exception as e:
             logger.error(f"{symbol} update current price error:{e}")
 
@@ -181,7 +184,7 @@ class ThreeFilterStrategy(Strategy):
 ### 三层滤网策略详细分析
 1. **基本信息**
 - 股票代码：{today["symbol"]}, 国家：{today["country"]}, 行业：{today["industry"]}, 板块：{today["sector"]}, 价格：{today["current_price"]}, 52周最高价：{today["fifty_two_week_high"]}, 52周最低价：{today["fifty_two_week_low"]}, 做空率：{today["short_ratio"]}, 分析师推荐指数：{today["recommendation"]} \
-2. ****
+2. **股票信息**
 - 股票信息:{analysis["stock_info"]}\
 3. **周K线分析：**
 - 周EMA均线指标：当前交易周短期EMA为{this_week["ema_short"]:.2f}, 长期EMA为{this_week["ema_long"]:.2f}, 短期EMA斜率为{analysis["week_short_slope"]:.2f}, 长期EMA斜率{analysis["week_long_slope"]:.2f}, \
@@ -201,7 +204,7 @@ class ThreeFilterStrategy(Strategy):
 2. 日K线：{df_day.tail(20).to_dict(orient="index")}
 
 ### 技术面综合评分
-综合以上分析，请给出一个介于 [-1,1] 的评分，并在最后输出 <score> 标签：
+综合以上分析，请给出一个介于 [-1,1] 的评分,并在最后输出 <score> 标签：
 <score></score>
 """        
 
@@ -520,7 +523,7 @@ class StrategyHelper():
                 date = datetime.strptime(df["date"].iat[-1], "%Y-%m-%d")
                 date = date + timedelta(days=1)
         
-        while(date < today):
+        while(date <= today):
             date_str = date.strftime("%Y-%m-%d")
             if self.analysis(symbol, date_str, update=update):
                 logger.info(F"⚠️ ✅Analysis report {symbol} at {date_str} finished.")

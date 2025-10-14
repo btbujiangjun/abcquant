@@ -284,9 +284,11 @@ class QuantDB:
 if __name__ == '__main__':
 
     db = DB("./data/quant_data.db")
-    sql = "ALTER TABLE stock_info ADD COLUMN update_time TEXT"
-    db.ddl(sql)
+    #sql = "ALTER TABLE stock_info ADD COLUMN update_time TEXT"
+    #db.ddl(sql)
+    sql = "select * from stock_price where symbol='XPEV' and interval = '1min' ORDER BY date DESC"
     sql = "select * from stock_info where symbol='XPEV'"
+    sql = "select a.symbol, b.close as price from stock_price a inner join stock_price b on a.symbol = b.symbol and a.interval = b.interval and b.close >= a.close * 1.5 where a.interval = 'daily' and SUBSTR(a.date, 1, 10) = '2025-10-01' and SUBSTR(b.date, 1, 10) = '2025-10-12'" 
     df = db.query(sql)
     print(df.head())
 
