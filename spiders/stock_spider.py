@@ -271,7 +271,7 @@ class YF_US_Spider(BaseStockSpider):
                         logger.error(f"Update {s} info error: {e}")
                         break
 
-                    keyvalues = {"symbol": s, "info": info}
+                    keyvalues = {"symbol": s, "info": info, "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
                     for key, data_type in field_map.items():
                         keyvalues[key] = info.get(data_type, 0) 
                     self.db.update_stock_info(keyvalues)

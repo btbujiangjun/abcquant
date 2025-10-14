@@ -171,6 +171,7 @@ class QuantDB:
                 quote_type TEXT,
                 recommendation TEXT,
                 info TEXT,
+                update_time TEXT,
                 UNIQUE(symbol)
             )            
             """,
@@ -283,9 +284,9 @@ class QuantDB:
 if __name__ == '__main__':
 
     db = DB("./data/quant_data.db")
-    #sql = "ALTER TABLE analysis_report ADD COLUMN update_time TEXT"
-    #db.ddl(sql)
-    sql = "select * from analysis_report where symbol='XPEV' order BY date DESC LIMIT 10"
+    sql = "ALTER TABLE stock_info ADD COLUMN update_time TEXT"
+    db.ddl(sql)
+    sql = "select * from stock_info where symbol='XPEV'"
     df = db.query(sql)
     print(df.head())
 

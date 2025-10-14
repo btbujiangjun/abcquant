@@ -64,7 +64,7 @@ USER_AGENTS = [
 OpenAI_CONFIG = {
     "model": "gpt-4o-mini",
     "base_url": "https://free.v36.cm/v1/",    
-    "api_key": "sk-p1JBAYtwircCFdGP407a6185DdA64878BaF9F1Bd731349F6"
+    "api_key": "sk-lNnZ482Z77KMAdF32c6b686aE7824a0291097a438d7854B6"
 }
 
 # 随机延迟范围 (秒)

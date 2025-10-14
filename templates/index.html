@@ -6,7 +6,7 @@
     <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f4f6f8; margin:0; padding:20px; }
-        .container { max-width:1400px; margin:auto; background:white; padding:20px; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,0.1); }
+        .container { max-width:1200px; margin:auto; background:white; padding:20px; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,0.1); }
         h1 { text-align:center; color:#2c3e50; }
         .toolbar { display:flex; gap:10px; margin-bottom:20px; }
         input,select,button { padding:10px; border:1px solid #ccc; border-radius:4px; }
@@ -17,7 +17,7 @@
         #stockInfo { background:#f8f9fa; border-radius:8px; padding:10px; margin-bottom:15px; font-size:14px; color:#555; line-height:1.6; cursor:pointer; }
         #customTable { width:100%; border-collapse: collapse; margin-top:20px; font-size:14px; }
         #customTable th, #customTable td { border:1px solid #ccc; padding:8px; text-align:left; }
-        #customTable th { background:#f0f0f0; }
+        #customTable th { background:#f0f0f0; text-align: center;}
     </style>
 </head>
 <body>
@@ -48,7 +48,7 @@
 
     <table id="customTable">
         <thead>
-            <tr><th colspan="10">分析报告</th></tr>
+            <tr><th colspan="4">分析报告</th></tr>
         </thead>
         <tbody id="customTableBody">
             <tr><td>请选择股票加载分析报告</td></tr>
@@ -164,23 +164,21 @@ async function searchStock(symbol=null){
     const reportResp=await fetch(`/quant_report/${sym}`); let reportData=[];
     if(reportResp.ok){ reportData=await reportResp.json();}
     const tbody=document.getElementById('customTableBody'); tbody.innerHTML='';
+    const tableHead = document.querySelector('#customTable thead tr th');
+    tableHead.colSpan = 4;
+    tableHead.innerHTML = currentSymbol ? `${currentSymbol} 分析报告` : '分析报告';
     if(reportData.length>0){
         reportData.sort((a,b)=>new Date(b.date)-new Date(a.date));
         const headerTr=document.createElement('tr');
         headerTr.style.textAlign='center'; 
-        headerTr.innerHTML=`<th>日期</th><th>收盘价</th><th>📊滤网</th><th>滤网报告</th><th>🔽双底</th><th>双底报告</th><th>🔼双顶</th><th>双顶报告</th><th>🏺杯柄</th><th>杯柄报告</th>`;
+        //headerTr.innerHTML=`<th>日期</th><th>收盘价</th><th>📊滤网</th><th>滤网报告</th><th>🔽双底</th><th>双底报告</th><th>🔼双顶</th><th>双顶报告</th><th>🏺杯柄</th><th>杯柄报告</th>`;
+        headerTr.innerHTML=`<th>日期</th><th>收盘价</th><th>📊滤网</th><th>滤网报告</th>`;
         tbody.appendChild(headerTr);
         reportData.forEach(row=>{const tr=document.createElement('tr'); tr.innerHTML=`
-            <td><b>${row.date}</b></br>更新:${row.update_time}</td>
-            <td>${row.price?.toFixed(2)||'-'}</td>
-            <td style="color:${getColorByScore(row.three_filters_score)}; font-size:20px">${row.three_filters_score??'-'}</td>
-            <td style="vertical-align: top;">${showReport(row.three_filters_report)||'-'}</td>
-            <td style="color:${getColorByScore(row.double_bottom_score)}; font-size:20px">${row.double_bottom_score??'-'}</td>
-            <td style="vertical-align: top;">${showReport(row.double_bottom_report)||'-'}</td>
-            <td style="color:${getColorByScore(row.double_top_score)}; font-size:20px">${row.double_top_score??'-'}</td>
-            <td style="vertical-align: top;">${showReport(row.double_top_report)||'-'}</td>
-            <td style="color:${getColorByScore(row.cup_handle_score)}; font-size:20px">${row.cup_handle_score??'-'}</td>
-            <td style="vertical-align: top;">${showReport(row.cup_handle_report)||'-'}</td>`; tbody.appendChild(tr);});
+            <td style="width:120px"><b>${row.date}</b></br>更新:${row.update_time}</td>
+            <td style="width:80px"><b>${row.price?.toFixed(2)||'-'}</b></td>
+            <td style="color:${getColorByScore(row.three_filters_score)}; font-size:30px">${row.three_filters_score??'-'}</td>
+            <td style="vertical-align: top;">${showReport(row.three_filters_report)||'-'}</td>`; tbody.appendChild(tr);});
     } else { tbody.innerHTML='<tr><td>暂无分析报告</td></tr>'; }
 }
 
