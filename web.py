@@ -1,9 +1,9 @@
-import json
+import pandas as pd
+from fastapi import Request
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi import Request
 
 from db import QuantDB
 from utils.logger import logger
@@ -70,6 +70,7 @@ def get_analysis_report(symbol: str):
     if df.empty:
         raise HTTPException(status_code=404, detail="未找到该股票分析报告")
 
+    #df = df.where(pd.notnull(df), None)
     df = df.sort_values("date", ascending=False)
     return [
         {
@@ -77,17 +78,25 @@ def get_analysis_report(symbol: str):
             "date": row["date"].split()[0],
             "price": row["close"],
             "update_time": row["update_time"],
-            "three_filters_score": row.get("three_filters_score"),
+            "three_filters_score": safe_get(row, "three_filters_score"),
             "three_filters_report": row.get("three_filters_report"),
-            "double_bottom_score": row.get("double_bottom_score"),
+            "double_bottom_score": safe_get(row, "double_bottom_score"),
             "double_bottom_report": row.get("double_bottom_report"),
-            "double_top_score": row.get("double_top_score"),
+            "double_top_score": safe_get(row, "double_top_score"),
             "double_top_report": row.get("double_top_report"),
-            "cup_handle_score": row.get("cup_handle_score"),
+            "cup_handle_score": safe_get(row, "cup_handle_score"),
             "cup_handle_report": row.get("cup_handle_report"),
         }
         for _, row in df.iterrows()
     ]
+    print(data)
+    return data
+
+def safe_get(row, key, default=None):
+    val = row.get(key, default)
+    if pd.isna(val):
+        return default
+    return val
 
 
 @app.get("/stock_info/{symbol}")

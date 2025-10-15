@@ -96,7 +96,7 @@ class Strategy:
         try:
             data = json.loads(stock_info)
             #用周期内最后一天收盘价格替换实时价格数据，避免数据错乱
-            if not is_yesterday(date): 
+            if not is_today(date) and not is_yesterday(date): 
                 data["currentPrice"] = df_day['close'].iat[-1]
                 stock_info = json.dumps(data, ensure_ascii=False)
         except Exception as e:

@@ -1,5 +1,11 @@
 from datetime import datetime, timedelta
 
+def is_today(date_str:str) -> bool:
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d").date() == datetime.today().date()
+    except ValueError:
+        return False  # 格式不正确
+
 def is_yesterday(date_str:str) -> bool:
     """
     判断 date_str 是否为昨天
