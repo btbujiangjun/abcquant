@@ -8,7 +8,7 @@ from db import QuantDB
 from utils.time import *
 from utils.logger import logger
 from config import CRITICAL_STOCKS_US
-from quant.llm import LLMClient, OpenAIClient
+from quant.llm import LLMClient, OllamaClient, OpenAIClient
 
 
 # =====================
@@ -32,7 +32,71 @@ class IndicatorCalculator:
             signalperiod=macd_signal
         )
         df["macd"], df["signal"], df["hist"] = macd, signal, hist
-        return df
+        return df.round(2)
+
+    @staticmethod
+    def add_technical_indicators(
+        df: pd.DataFrame,
+        ema_short=12,
+        ema_long=26,
+        macd_signal=9,
+        rsi_period=14,
+        kdj_period=9,
+        bbands_period=20,
+        atr_period=14,
+    ) -> pd.DataFrame:
+        """
+        为 DataFrame 增加常用技术指标：
+        EMA、MACD、RSI、KDJ、布林带、ATR
+        """
+        df = df.sort_values(by="date", ascending=True).reset_index(drop=True)
+
+        # --- EMA ---
+        df["ema_short"] = talib.EMA(df["close"], timeperiod=ema_short)
+        df["ema_long"] = talib.EMA(df["close"], timeperiod=ema_long)
+
+        # --- MACD ---
+        macd, signal, hist = talib.MACD(
+            df["close"],
+            fastperiod=ema_short,
+            slowperiod=ema_long,
+            signalperiod=macd_signal,
+        )
+        df["macd"], df["signal"], df["hist"] = macd, signal, hist
+
+        # --- RSI ---
+        df["rsi"] = talib.RSI(df["close"], timeperiod=rsi_period)
+
+        # --- KDJ (基于 Stochastic Oscillator) ---
+        lowk, highd = talib.STOCH(
+            df["high"],
+            df["low"],
+            df["close"],
+            fastk_period=kdj_period,
+            slowk_period=3,
+            slowk_matype=0,
+            slowd_period=3,
+            slowd_matype=0,
+        )
+        df["kdj_k"], df["kdj_d"] = lowk, highd
+        df["kdj_j"] = 3 * df["kdj_k"] - 2 * df["kdj_d"]
+
+        # --- Bollinger Bands ---
+        upper, middle, lower = talib.BBANDS(
+            df["close"],
+            timeperiod=bbands_period,
+            nbdevup=2,
+            nbdevdn=2,
+            matype=0,
+        )
+        df["bb_upper"], df["bb_mid"], df["bb_lower"] = upper, middle, lower
+
+        # --- ATR (平均真实波幅) ---
+        df["atr"] = talib.ATR(df["high"], df["low"], df["close"], timeperiod=atr_period)
+
+        # --- 最后统一保留两位小数 ---
+        return df.round(2)
+
 
 class PriceDataPeroidInvalidError(Exception):
     def __init__(self, 
@@ -96,7 +160,7 @@ class Strategy:
         try:
             data = json.loads(stock_info)
             #用周期内最后一天收盘价格替换实时价格数据，避免数据错乱
-            if not is_today(date) and not is_yesterday(date): 
+            if not is_today(date) and not is_yesterday(date):
                 data["currentPrice"] = df_day['close'].iat[-1]
                 stock_info = json.dumps(data, ensure_ascii=False)
         except Exception as e:
@@ -117,6 +181,8 @@ class Strategy:
 
         # 6. 构造 prompt
         prompt = self.build_prompt(analysis)
+
+        logger.info(prompt)
 
         # 7. 调用 LLM
         report = self.llm.chat(prompt)
@@ -177,6 +243,82 @@ class ThreeFilterStrategy(Strategy):
         today, yesterday = analysis["today"], analysis["yesterday"]
         this_week, last_week = analysis["this_week"], analysis["last_week"]
         df_day, df_week = analysis["df_day"], analysis["df_week"]
+       
+        return f"""
+你是一名专业的量化分析师，擅长通过多周期均线识别股价趋势。
+请根据以下数据进行**简洁的结论性分析**（**不写推理过程**），**逐个指标打分**并输出**结构化结论**，控制在**600字以内**，并用简练的金融术语表达。  
+### 三层滤网策略详细分析
+1. **基本信息**
+- 股票代码：{today["symbol"]}, 国家：{today["country"]}, 行业：{today["industry"]}, 板块：{today["sector"]}, 价格：{json.loads(analysis["stock_info"])["currentPrice"]}, 52周最高价：{today["fifty_two_week_high"]}, 52周最低价：{today["fifty_two_week_low"]}, 做空率：{today["short_ratio"]}, 分析师推荐指数：{today["recommendation"]} \
+2. **周K线分析：**
+- 周EMA均线指标：当前交易周短期EMA为{this_week["ema_short"]:.2f}, 长期EMA为{this_week["ema_long"]:.2f}, 短期EMA斜率为{analysis["week_short_slope"]:.2f}, 长期EMA斜率{analysis["week_long_slope"]:.2f}, \
+短期EMA{"高于" if this_week["ema_short"]>this_week["ema_long"] else "低于"}长期EMA, 短期EMA斜率{"高于" if analysis["week_short_slope"]>analysis["week_long_slope"] else "低于"}长期EMA斜率, \
+前一交易周, 短期EMA斜率为{last_week["ema_short"] - df_week.iloc[-3]["ema_short"]:.2f}, 当前交易周短
+    期EMA斜率{"高于" if analysis["week_short_slope"] > (last_week["ema_short"] - df_week.iloc[-3]["ema_short"]) else "低于"}前一时间点短期EMA斜率；
+- 周MACD指标：当前交易周MACD线为{this_week["macd"]:.2f}, 信号线为{this_week["signal"]:.2f}, MACD柱状图为{this_week["hist"]:.2f}, MACD柱状图斜率为{analysis["week_hist_slope"]:.2f}；
+
+3. **日K线分析：**
+- 日K基础信息:开盘:{today["open"]:.2f}，最低:{today["low"]:.2f}，最高:{today["high"]:.2f}，收盘价:{today["close"]:.2f}，涨跌幅:{(today["close"]/yesterday["close"]-1)*100:.2f}%；
+- 日均线指标：当前交易日短期EMA为{today["ema_short"]:.2f}, 长期EMA为{today["ema_long"]:.2f}, 短期EMA斜率为{analysis["day_short_slope"]:.2f}, 长期EMA斜率{analysis["day_long_slope"]:.2f}；
+- 日MACD指标：当前交易日MACD线为{today["macd"]:.2f}, 信号线为{today["signal"]:.2f}, MACD柱状图为{today["hist"]:.2f}, MACD柱状图斜率为{analysis["day_hist_slope"]:.2f}；
+- 日成交量：当前交易日成交量为{today["volume"]:.0f}，前一个交易日成交量为{yesterday["volume"]:.0f}；
+
+### 历史数据
+1. 周K线：{df_week.tail(20).to_dict(orient="index")}
+2. 日K线：{df_day.tail(40).to_dict(orient="index")}
+
+### 技术面综合评分
+综合以上信息分析{today["symbol"]}未来一周内的价格走势，请给出一个介于 [-1,1] 的评分,并在最后输出 <score> 标签：
+<score></score>
+"""        
+ 
+        return f"""
+你是一名资深量化分析师，擅长结合多周期均线、动量指标和波动率指标进行趋势判断。  
+请根据以下数据进行**简洁的结论性分析**（不写推理过程），**逐个指标打分**并输出**结构化结论**，控制在**600字以内**，并用简练的金融术语表达。
+
+---
+
+### 一、基本信息
+- 股票代码：{today["symbol"]}  
+- 国家：{today["country"]}，行业：{today["industry"]}，板块：{today["sector"]}  
+- 当前价格：{json.loads(analysis["stock_info"])["currentPrice"]}  
+- 52周最高价：{today["fifty_two_week_high"]}，52周最低价：{today["fifty_two_week_low"]}  
+- 做空率：{today["short_ratio"]}，分析师推荐指数：{today["recommendation"]}
+
+---
+
+### 二、周K线分析
+- **EMA趋势**：短期EMA={this_week["ema_short"]:.2f}，长期EMA={this_week["ema_long"]:.2f}；短期EMA斜率={analysis["week_short_slope"]:.2f}，长期EMA斜率={analysis["week_long_slope"]:.2f}；短期EMA{"高于" if this_week["ema_short"]>this_week["ema_long"] else "低于"}长期EMA。  
+- **MACD动能**：MACD={this_week["macd"]:.2f}，Signal={this_week["signal"]:.2f}，Histogram={this_week["hist"]:.2f}，柱状图斜率={analysis["week_hist_slope"]:.2f}。  
+- **RSI相对强弱**：RSI={this_week["rsi"]:.2f}（50以上偏强，30以下超卖）。  
+- **ATR波动率**：ATR={this_week["atr"]:.2f}，反映当周价格波动区间。  
+- **布林带**：上轨={this_week["bb_upper"]:.2f}，中轨={this_week["bb_mid"]:.2f}，下轨={this_week["bb_lower"]:.2f}，收盘价处于布林带{"上方" if this_week["close"]>this_week["bb_mid"] else "下方"}。
+
+---
+
+### 三、日K线分析
+- **价格变动**：开盘={today["open"]:.2f}，收盘={today["close"]:.2f}，最高={today["high"]:.2f}，最低={today["low"]:.2f}，涨跌幅={(today["close"]/yesterday["close"]-1)*100:.2f}%  
+- **EMA趋势**：短期EMA={today["ema_short"]:.2f}，长期EMA={today["ema_long"]:.2f}；短期斜率={analysis["day_short_slope"]:.2f}，长期斜率={analysis["day_long_slope"]:.2f}  
+- **MACD动能**：MACD={today["macd"]:.2f}，Signal={today["signal"]:.2f}，Hist={today["hist"]:.2f}，Hist斜率={analysis["day_hist_slope"]:.2f}  
+- **RSI强弱**：RSI={today["rsi"]:.2f}  
+- **成交量对比**：今日成交量={today["volume"]:.0f}，昨日={yesterday["volume"]:.0f}（{"放量" if today["volume"]>yesterday["volume"] else "缩量"}）  
+- **布林带状态**：上轨={today["bb_upper"]:.2f}，中轨={today["bb_mid"]:.2f}，下轨={today["bb_lower"]:.2f}，收盘价位于{"上轨附近" if today["close"]>today["bb_mid"] else "下轨附近"}。
+
+---
+
+### 四、历史数据参考
+- 周K线（近20周）：{df_week.tail(20).to_dict(orient="index")}
+- 日K线（近40日）：{df_day.tail(40).to_dict(orient="index")}
+
+---
+
+### 五、技术面综合评分
+请综合以上**EMA趋势、MACD动能、RSI强弱、布林带位置、成交量变化**等指标，判断未来一周{today["symbol"]}股价的趋势方向。  
+输出一个介于 [-1, 1] 的评分（看空为负，看多为正），并简要说明评分逻辑（不超过两句话）。  
+最后以 `<score>` 标签格式化输出结果：
+
+<score></score>
+"""
         
         return f"""
 你是一名专业的量化分析师，擅长通过技术形态识别股价趋势。  
@@ -200,11 +342,11 @@ class ThreeFilterStrategy(Strategy):
 - 日成交量：当前交易日成交量为{today["volume"]:.0f}，前一个交易日成交量为{yesterday["volume"]:.0f}；
 
 ### 历史数据
-1. 周K线：{df_week.tail(40).to_dict(orient="index")}
-2. 日K线：{df_day.tail(20).to_dict(orient="index")}
+1. 周K线：{df_week.tail(20).to_dict(orient="index")}
+2. 日K线：{df_day.tail(40).to_dict(orient="index")}
 
 ### 技术面综合评分
-综合以上分析，请给出一个介于 [-1,1] 的评分,并在最后输出 <score> 标签：
+综合以上信息分析{today["symbol"]}未来一周内的价格走势，请给出一个介于 [-1,1] 的评分,并在最后输出 <score> 标签：
 <score></score>
 """        
 
@@ -476,13 +618,15 @@ class StrategyFactory:
 
 class StrategyHelper():
     def __init__(self):
-        self.llm = OpenAIClient()
+        #self.llm = OpenAIClient()
+        self.llm = OllamaClient()
         strategy_names = [
             "three_filters", 
             "double_bottom", 
             "double_top", 
             "cup_handle"
         ]
+        strategy_names = ["three_filters"]
         self.db = QuantDB()
         self.strategies = [StrategyFactory.create(name, llm=self.llm, db=self.db) for name in strategy_names]
 
@@ -559,7 +703,8 @@ if __name__ == "__main__":
         "AMD",
         "INTC"
     ]
-    symbols, update = ["XPEV"], True
+    symbols, update = ["NVDA", "META"], True
+    #update = True
     helper = StrategyHelper()
     #helper.analysis("XPEV", "2025-10-03", update=True)
     for symbol in symbols:

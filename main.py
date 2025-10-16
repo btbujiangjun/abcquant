@@ -12,12 +12,12 @@ from utils.logger import logger
 from agents.scheduler import Scheduler
 
 def main():
-    logger.info("Starting quant spider project...")
+    logger.info("🚀Starting quant spider project...")
 
     # 1. 初始化数据库
     db = QuantDB()
     db.init_db()
-    logger.info("Database initialized.")
+    logger.info("👉Database initialized.")
     
     # 2. 启动调度器
     scheduler = Scheduler()

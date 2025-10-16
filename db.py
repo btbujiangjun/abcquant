@@ -227,6 +227,7 @@ class QuantDB:
 
     def update_stock_price(self, df):
         if isinstance(df, pd.DataFrame) and not df.empty:
+            df = df.round(2)
             self.db.update(df, "stock_price")
         else:
             logger.error("Update stock price error: not data frame or empty.")
@@ -253,7 +254,7 @@ class QuantDB:
             ascending=True
         ).reset_index(drop=True)
 
-        return df
+        return df.round(2)
 
     def latest_stock_price(self, symbol: str, interval=str) -> pd.DataFrame:
         sql = f"SELECT date FROM stock_price WHERE symbol = '{symbol}' AND interval = '{interval}' ORDER BY date DESC LIMIT 1"

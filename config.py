@@ -6,16 +6,17 @@ FINNHUB_API_KEY = "YOUR_FINNHUB_API_KEY"
 
 # 爬取股票列表
 CRITICAL_STOCKS = [
+    {"name":"NVDA", "exchange":"us"},
     {"name":"XPEV", "exchange":"us"},
     {"name":"LI", "exchange":"us"},
     {"name":"NIO", "exchange":"us"},
+    #{"name":"NVDA", "exchange":"us"},
+    {"name":"TSLA", "exchange":"us"},
     {"name":"BABA", "exchange":"us"},
     {"name":"MU", "exchange":"us"},
     {"name":"TQQQ", "exchange":"us"},
     {"name":"SQQQ", "exchange":"us"},
     {"name":"QQQ", "exchange":"us"},
-    {"name":"NVDA", "exchange":"us"},
-    {"name":"TSLA", "exchange":"us"},
     {"name":"PDD", "exchange":"us"},
     {"name":"NBIS", "exchange":"us"},
     {"name":"CRWV", "exchange":"us"},
@@ -34,6 +35,7 @@ CRITICAL_STOCKS = [
     {"name":"TSM", "exchange":"us"},
     {"name":"AVGO", "exchange":"us"},
     {"name":"BIDU", "exchange":"us"},
+    {"name":"EOSE", "exchange":"us"},
 ]
 
 CRITICAL_STOCKS_US = [stock["name"] for stock in CRITICAL_STOCKS if stock["exchange"]=="us"]
@@ -65,6 +67,19 @@ OpenAI_CONFIG = {
     "model": "gpt-4o-mini",
     "base_url": "https://free.v36.cm/v1/",    
     "api_key": "sk-lNnZ482Z77KMAdF32c6b686aE7824a0291097a438d7854B6"
+}
+"""
+OpenAI_CONFIG = {
+    "model": "gpt-4o-mini",
+    "base_url": "https://api.chatanywhere.tech",    
+    "api_key": "sk-EiUbTR3acpNJkHhPoQBz5E35YW1jOLJRt7yE8vhU3aQuSx32"
+}
+"""
+OLLAMA_CONFIG = {
+    #"model": "gpt-oss:20b",
+    #"model": "gemma3:27b",
+    "model": "qwen3:30b",
+    "base_url": "http://localhost:11434/api/chat" 
 }
 
 # 随机延迟范围 (秒)

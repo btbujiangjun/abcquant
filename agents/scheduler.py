@@ -20,8 +20,8 @@ def strategy_job(name:str="LLMStrategy"):
 
 def hour_job(name:str="hour job for ctritical stock"):
     logger.info(f"⚠️  {name} 执行中... ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})")
-    #spider = YF_US_Spider()
-    #spider.update_latest(symbols=CRITICAL_STOCKS_US)
+    spider = YF_US_Spider()
+    spider.update_latest(symbols=CRITICAL_STOCKS_US)
     strategy = StrategyHelper()
     strategy.update_latest(symbols=CRITICAL_STOCKS_US, days=20, update=True)
 
