@@ -42,7 +42,7 @@ class OllamaClient(LLMClient):
             self, 
             prompt:str,
             max_tokens: int = 8192,
-            temperature: float = None,
+            temperature: float = 0,
             top_p: float = 0,
         ) -> str:
         try:
@@ -55,8 +55,8 @@ class OllamaClient(LLMClient):
                     }
                 ],
                 options={
-                    "temperature": self.temperature,        # 控制随机性
-                    "seed": 42,                # 固定随机种子（复现结果）
+                    "temperature": temperature or self.temperature,
+                    "enable_thinking": False
                 }
             )
             return response.message.content.strip()
@@ -67,7 +67,7 @@ class OllamaClient(LLMClient):
             self,
             prompt:str,
             max_tokens: int = 8192,
-            temperature: float = None,
+            temperature: float = 0,
             top_p: float = 0,
         ) -> str:
         try:
@@ -80,7 +80,8 @@ class OllamaClient(LLMClient):
                     }
                 ],
                 options={
-                    "temperature": self.temperature,
+                    "temperature": temperature or self.temperature,
+                    "enable_thinking": False,
                     "seed": 42,
                 }
             )
@@ -136,11 +137,10 @@ class OpenAIClient(LLMClient):
         temperature: float = None,
         top_p: float = 0,
     ) -> str:
-        """异步请求（asyncio 并发友好）"""
         try:
             completion = await self.async_client.chat.completions.create(
                 model=self.model,
-                temperature=self.temperature,
+                temperature= temperature or self.temperature,
                 max_tokens=max_tokens,
                 top_p=top_p,
                 messages=[

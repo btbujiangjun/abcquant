@@ -132,6 +132,9 @@ document.getElementById('toggleSidebar').addEventListener('click',()=>{
 });
 
 // ===== 工具函数 =====
+function getAfterThink(text) {
+    const tag = '</think>';const idx = text.indexOf(tag);if(idx === -1) return text;return text.substring(idx + tag.length).trim();
+}
 function calculateEMA(data, period){
     const k=2/(period+1); const emaArray=[]; let emaPrev=data[0].close;
     data.forEach((d,i)=>{const ema=i===0?d.close:d.close*k+emaPrev*(1-k); emaArray.push(ema); emaPrev=ema;});
@@ -146,12 +149,15 @@ function getRandomColor(){ const palette=['#42a5f5','#ef5350','#66bb6a','#ab47bc
 const indicatorColors={EMA:['#42A5F5','#64B5F6','#90CAF9'],MACD:['#AB47BC','#BA68C8','#CE93D8'],VOL:['#FFA726','#FFB74D','#FFCC80'],PRICE:['#EF5350','#E57373','#EF9A9A'],RSI:['#26C6DA','#4DD0E1','#80DEEA'],KDJ:['#FFD54F','#FFEB3B','#FFF176'],BOLL:['#81D4FA','#4FC3F7','#29B6F6']};
 function getRandomFromArray(arr){return arr[Math.floor(Math.random()*arr.length)];}
 function showReport(text){
+    text = getAfterThink(text)
+    console.log(text)
     return text
     .replace(/^#### (.*)$/gm, (_, title) => `<h4 style="color:${getRandomFromArray(indicatorColors.MACD)};margin:3px 0 2px;font-size:14px;font-weight:600;">${title}</h4>`)
     .replace(/^### (.*)$/gm, (_, title) => `<h3 style="color:${getRandomFromArray(indicatorColors.EMA)};margin:5px 0 3px;font-size:15px;font-weight:700;">${title}</h3>`)
     .replace(/\b(EMA|ema_short|ema_long)\b/g,m=>`<span style="color:${getRandomFromArray(indicatorColors.EMA)};font-weight:600;">${m}</span>`)
     .replace(/\b(MACD)\b/g,m=>`<span style="color:${getRandomFromArray(indicatorColors.MACD)};font-weight:600;">${m}</span>`)
     .replace(/(?<![A-Za-z0-9])(成交量|VOL)(?![A-Za-z0-9])/g,m=>`<span style="color:${getRandomFromArray(indicatorColors.VOL)};font-weight:600;">${m}</span>`)
+    .replace(/(?<![A-Za-z0-9])(价格|price)(?![A-Za-z0-9])/g,m=>`<span style="color:${getRandomFromArray(indicatorColors.PRICE)};font-weight:600;">${m}</span>`)
     .replace(/\b(RSI)\b/g,m=>`<span style="color:${getRandomFromArray(indicatorColors.RSI)};font-weight:600;">${m}</span>`)
     .replace(/\b(KDJ|KD|J)\b/g,m=>`<span style="color:${getRandomFromArray(indicatorColors.KDJ)};font-weight:600;">${m}</span>`)
     .replace(/(?<![A-Za-z0-9])(布林带|BOLL)(?![A-Za-z0-9])/g,m=>`<span style="color:${getRandomFromArray(indicatorColors.BOLL)};font-weight:600;">${m}</span>`)

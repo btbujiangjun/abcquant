@@ -273,8 +273,10 @@ class QuantDB:
         sql += " ORDER BY a.date DESC"
         if top_k is not None:
             sql += f" LIMIT {top_k}"
-        return self.db.query(sql)
-    
+        df = self.db.query(sql)
+        df['date'] = df['date'].dt.strftime('%Y-%m-%d')
+        return df
+
     def update_analysis_report(self, df:pd.DataFrame):
         if isinstance(df, pd.DataFrame) and not df.empty:
             self.db.update(df, "analysis_report")

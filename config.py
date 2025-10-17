@@ -79,6 +79,7 @@ OLLAMA_CONFIG = {
     #"model": "gpt-oss:20b",
     #"model": "gemma3:27b",
     "model": "qwen3:30b",
+    #"model": "qwq:32b",
     "base_url": "http://localhost:11434/api/chat" 
 }
 

@@ -94,7 +94,6 @@ class IndicatorCalculator:
         # --- ATR (平均真实波幅) ---
         df["atr"] = talib.ATR(df["high"], df["low"], df["close"], timeperiod=atr_period)
 
-        # --- 最后统一保留两位小数 ---
         return df.round(2)
 
 
@@ -116,6 +115,7 @@ class Strategy:
     def __init__(self, llm:LLMClient, db:QuantDB=QuantDB()):
         self.llm = llm
         self.db = db
+        self.columns = ['date', 'open', 'close', 'high', 'low', 'volume']
 
     def analyze(self, 
             df_day: pd.DataFrame, 
@@ -245,31 +245,123 @@ class ThreeFilterStrategy(Strategy):
         df_day, df_week = analysis["df_day"], analysis["df_week"]
        
         return f"""
-你是一名专业的量化分析师，擅长通过多周期均线识别股价趋势。
-请根据以下数据进行**简洁的结论性分析**（**不写推理过程**），**逐个指标打分**并输出**结构化结论**，控制在**600字以内**，并用简练的金融术语表达。  
+你是一名专业的量化分析师，擅长通过技术形态识别股价趋势。  
+请根据提供的数据进行分析：
 ### 三层滤网策略详细分析
-1. **基本信息**
-- 股票代码：{today["symbol"]}, 国家：{today["country"]}, 行业：{today["industry"]}, 板块：{today["sector"]}, 价格：{json.loads(analysis["stock_info"])["currentPrice"]}, 52周最高价：{today["fifty_two_week_high"]}, 52周最低价：{today["fifty_two_week_low"]}, 做空率：{today["short_ratio"]}, 分析师推荐指数：{today["recommendation"]} \
-2. **周K线分析：**
+### 股票信息
+- 股票代码：{today["symbol"]}, 国家：{today["country"]}, 行业：{today["industry"]}, 板块：{today["sector"]}, 价格：{json.loads(analysis["stock_info"])["currentPrice"]}, 52周最高价：{today["fifty_two_week_high"]}, 52周最低价：{today["fifty_two_week_low"]}, 做空率：{today["short_ratio"]}
+
+### 周K线分析
+- 周EMA均线指标：当前交易周短期EMA为{this_week["ema_short"]:.2f}, 长期EMA为{this_week["ema_long"]:.2f}, 短期EMA斜率为{analysis["week_short_slope"]:.2f}, 长期EMA斜率{analysis["week_long_slope"]:.2f}, 短期EMA{"高于" if this_week["ema_short"]>this_week["ema_long"] else "低于"}长期EMA, 短期EMA斜率{"高于" if analysis["week_short_slope"]>analysis["week_long_slope"] else "低于"}长期EMA斜率, 前一交易周短期EMA斜率为{last_week["ema_short"] - df_week.iloc[-3]["ema_short"]:.2f}, 当前交易周短期EMA斜率{"高于" if analysis["week_short_slope"] > (last_week["ema_short"] - df_week.iloc[-3]["ema_short"]) else "低于"}前一时间点短期EMA斜率；
+- 周MACD指标：当前交易周MACD线为{this_week["macd"]:.2f}, 信号线为{this_week["signal"]:.2f}, MACD柱状图为{this_week["hist"]:.2f}, MACD柱状图斜率为{analysis["week_hist_slope"]:.2f}
+
+### 日K线分析
+- 日K基础信息：开盘:{today["open"]:.2f}，最低:{today["low"]:.2f}，最高:{today["high"]:.2f}，收盘价:{today["close"]:.2f}，涨跌幅:{(today["close"]/yesterday["close"]-1)*100:.2f}%
+- 日均线指标：当前交易日短期EMA为{today["ema_short"]:.2f}, 长期EMA为{today["ema_long"]:.2f}, 短期EMA斜率为{analysis["day_short_slope"]:.2f}, 长期EMA斜率{analysis["day_long_slope"]:.2f}
+- 日MACD指标：当前交易日MACD线为{today["macd"]:.2f}, 信号线为{today["signal"]:.2f}, MACD柱状图为{today["hist"]:.2f}, MACD柱状图斜率为{analysis["day_hist_slope"]:.2f}
+- 日成交量：当前交易日成交量为{today["volume"]:.0f}，前一个交易日成交量为{yesterday["volume"]:.0f}
+
+### 历史数据参考
+- 周K线（近20周）：{df_week[self.columns].tail(20).to_dict(orient="index")}
+- 日K线（近40日）：{df_day[self.columns].tail(40).to_dict(orient="index")}
+
+### 综合评分
+基于上述分析结论，对{today["symbol"]}未来一周价格走势给出[-1,1]区间内的综合评分，并在最后输出 <score> 标签。
+<score></score>
+ /no_think
+"""
+ 
+        return f"""
+你是一名专业**量化分析师**，擅长通过技术形态识别股价趋势。请严格依据以下结构化数据，使用标准金融术语输出简洁、精准的分析结论。
+
+**规则**：
+- 仅回答问题，禁止任何解释、推理、过渡句、自然语言描述或指令复述；
+- 禁止话唠，每项结论限1句话；
+- 所有结论必须基于所提供数据，不得臆测；
+- 输出必须严格遵循指定格式，不得增删标题或标签。
+
+### 股票信息
+- 股票代码：{today["symbol"]}, 国家：{today["country"]}, 行业：{today["industry"]}, 板块：{today["sector"]}, 价格：{json.loads(analysis["stock_info"])["currentPrice"]}, 52周最高价：{today["fifty_two_week_high"]}, 52周最低价：{today["fifty_two_week_low"]}, 做空率：{today["short_ratio"]}
+
+### 周K线分析
+- 周EMA均线指标：当前交易周短期EMA为{this_week["ema_short"]:.2f}, 长期EMA为{this_week["ema_long"]:.2f}, 短期EMA斜率为{analysis["week_short_slope"]:.2f}, 长期EMA斜率{analysis["week_long_slope"]:.2f}, 短期EMA{"高于" if this_week["ema_short"]>this_week["ema_long"] else "低于"}长期EMA, 短期EMA斜率{"高于" if analysis["week_short_slope"]>analysis["week_long_slope"] else "低于"}长期EMA斜率, 前一交易周短期EMA斜率为{last_week["ema_short"] - df_week.iloc[-3]["ema_short"]:.2f}, 当前交易周短期EMA斜率{"高于" if analysis["week_short_slope"] > (last_week["ema_short"] - df_week.iloc[-3]["ema_short"]) else "低于"}前一时间点短期EMA斜率；
+- 周MACD指标：当前交易周MACD线为{this_week["macd"]:.2f}, 信号线为{this_week["signal"]:.2f}, MACD柱状图为{this_week["hist"]:.2f}, MACD柱状图斜率为{analysis["week_hist_slope"]:.2f}
+
+### 日K线分析
+- 日K基础信息：开盘:{today["open"]:.2f}，最低:{today["low"]:.2f}，最高:{today["high"]:.2f}，收盘价:{today["close"]:.2f}，涨跌幅:{(today["close"]/yesterday["close"]-1)*100:.2f}%
+- 日均线指标：当前交易日短期EMA为{today["ema_short"]:.2f}, 长期EMA为{today["ema_long"]:.2f}, 短期EMA斜率为{analysis["day_short_slope"]:.2f}, 长期EMA斜率{analysis["day_long_slope"]:.2f}
+- 日MACD指标：当前交易日MACD线为{today["macd"]:.2f}, 信号线为{today["signal"]:.2f}, MACD柱状图为{today["hist"]:.2f}, MACD柱状图斜率为{analysis["day_hist_slope"]:.2f}
+- 日成交量：当前交易日成交量为{today["volume"]:.0f}，前一个交易日成交量为{yesterday["volume"]:.0f}
+
+### 历史数据参考
+- 周K线（近20周）：{df_week[self.columns].tail(20).to_dict(orient="index")}
+- 日K线（近40日）：{df_day[self.columns].tail(40).to_dict(orient="index")}
+
+### 综合评分
+基于上述数据，对{today["symbol"]}未来一周价格走势给出[-1,1]区间内的综合评分，并在末尾严格输出<score>标签。
+
+【输出格式】
+### 1. 股票信息分析
+- **当前价格**：{{价格分析结论}}
+- **做空率**：{{做空分析结论}}
+- **分析师推荐指数**：{{分析师推荐指数结论}}
+
+### 2. 周K线分析
+- EMA：{{周EMA结论}}
+- MACD：{{周MACD结论}}
+
+### 3. 日K线分析
+- 价格与涨跌幅：{{日价格结论}}
+- EMA：{{日EMA结论}}
+- MACD：{{日MACD结论}}
+- 成交量：{{日成交量结论}}
+
+### 综合评分
+{{综合分析结论}}
+<score>{{score}}</score>
+"""
+       
+        return f"""
+你是一名专业**量化分析师**，擅长通过技术形态识别股价趋势。基于以下数据，用金融专业术语输出简洁的结构化结论，**只回答问题，禁止输出任何指令要求、解释、推理、过渡句或自然语言描述，禁止话唠**：
+
+### 股票信息
+- 股票代码：{today["symbol"]}, 国家：{today["country"]}, 行业：{today["industry"]}, 板块：{today["sector"]}, 价格：{json.loads(analysis["stock_info"])["currentPrice"]}, 52周最高价：{today["fifty_two_week_high"]}, 52周最低价：{today["fifty_two_week_low"]}, 做空率：{today["short_ratio"]} \
+
+### 周K线分析
 - 周EMA均线指标：当前交易周短期EMA为{this_week["ema_short"]:.2f}, 长期EMA为{this_week["ema_long"]:.2f}, 短期EMA斜率为{analysis["week_short_slope"]:.2f}, 长期EMA斜率{analysis["week_long_slope"]:.2f}, \
 短期EMA{"高于" if this_week["ema_short"]>this_week["ema_long"] else "低于"}长期EMA, 短期EMA斜率{"高于" if analysis["week_short_slope"]>analysis["week_long_slope"] else "低于"}长期EMA斜率, \
-前一交易周, 短期EMA斜率为{last_week["ema_short"] - df_week.iloc[-3]["ema_short"]:.2f}, 当前交易周短
-    期EMA斜率{"高于" if analysis["week_short_slope"] > (last_week["ema_short"] - df_week.iloc[-3]["ema_short"]) else "低于"}前一时间点短期EMA斜率；
+前一交易周, 短期EMA斜率为{last_week["ema_short"] - df_week.iloc[-3]["ema_short"]:.2f}, 当前交易周短期EMA斜率{"高于" if analysis["week_short_slope"] > (last_week["ema_short"] - df_week.iloc[-3]["ema_short"]) else "低于"}前一时间点短期EMA斜率；
 - 周MACD指标：当前交易周MACD线为{this_week["macd"]:.2f}, 信号线为{this_week["signal"]:.2f}, MACD柱状图为{this_week["hist"]:.2f}, MACD柱状图斜率为{analysis["week_hist_slope"]:.2f}；
 
-3. **日K线分析：**
+### 日K线分析
 - 日K基础信息:开盘:{today["open"]:.2f}，最低:{today["low"]:.2f}，最高:{today["high"]:.2f}，收盘价:{today["close"]:.2f}，涨跌幅:{(today["close"]/yesterday["close"]-1)*100:.2f}%；
 - 日均线指标：当前交易日短期EMA为{today["ema_short"]:.2f}, 长期EMA为{today["ema_long"]:.2f}, 短期EMA斜率为{analysis["day_short_slope"]:.2f}, 长期EMA斜率{analysis["day_long_slope"]:.2f}；
 - 日MACD指标：当前交易日MACD线为{today["macd"]:.2f}, 信号线为{today["signal"]:.2f}, MACD柱状图为{today["hist"]:.2f}, MACD柱状图斜率为{analysis["day_hist_slope"]:.2f}；
 - 日成交量：当前交易日成交量为{today["volume"]:.0f}，前一个交易日成交量为{yesterday["volume"]:.0f}；
 
-### 历史数据
-1. 周K线：{df_week.tail(20).to_dict(orient="index")}
-2. 日K线：{df_day.tail(40).to_dict(orient="index")}
+### 历史数据参考
+- 周K线（近20周）：{df_week[self.columns].tail(20).to_dict(orient="index")}
+- 日K线（近40日）：{df_day[self.columns].tail(40).to_dict(orient="index")}
 
-### 技术面综合评分
-综合以上信息分析{today["symbol"]}未来一周内的价格走势，请给出一个介于 [-1,1] 的评分,并在最后输出 <score> 标签：
+### 综合评分
+综合以上信息预估{today["symbol"]}未来一周内的价格走势，请给出一个介于 [-1,1] 的综合评分,并在最后输出 <score> 标签：
 <score></score>
+/no_think
+【输出格式】
+### 1. 股票信息分析
+- **当前价格**：{价格分析结论}
+- **做空率**：{做空分析结论}
+- **分析师推荐指数**：{分析师推荐指数结论}
+
+### 2. 周K线分析
+- {周K线分析结论} (逐个指标分析，列表形式呈现)
+
+### 3. 日K线分析
+- {周K线分析结论} (逐个指标分析，列表形式呈现)
+
+### 综合评分
+{综合分析结论}
+<score>{score}</score>
 """        
  
         return f"""
@@ -318,6 +410,7 @@ class ThreeFilterStrategy(Strategy):
 最后以 `<score>` 标签格式化输出结果：
 
 <score></score>
+/no_think
 """
         
         return f"""
@@ -648,7 +741,7 @@ class StrategyHelper():
                 logger.warning(e)
                 return False
             except Exception as e:
-                logger.error(f"{symbol} {date} quant error:{e}")
+                logger.error(f"🚫{symbol} {date} quant error:{e}")
                 return False
 
         if len(data) > 0:
