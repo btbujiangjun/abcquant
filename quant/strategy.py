@@ -182,7 +182,7 @@ class Strategy:
         # 6. 构造 prompt
         prompt = self.build_prompt(analysis)
 
-        logger.info(prompt)
+        #logger.info(prompt)
 
         # 7. 调用 LLM
         report = self.llm.chat(prompt)
@@ -268,7 +268,6 @@ class ThreeFilterStrategy(Strategy):
 ### 综合评分
 基于上述分析结论，对{today["symbol"]}未来一周价格走势给出[-1,1]区间内的综合评分，并在最后输出 <score> 标签。
 <score></score>
- /no_think
 """
  
         return f"""
@@ -706,7 +705,7 @@ class StrategyFactory:
             cls.discover()
         if name not in cls._strategies:
             available = ", ".join(cls._strategies.keys())
-            raise ValueError(f"未知策略: {name}, 可选: {available}")
+            raise ValueError(f"❤️  未知策略: {name}, 可选: {available}")
         return cls._strategies[name](**kwargs)
 
 class StrategyHelper():
@@ -728,7 +727,7 @@ class StrategyHelper():
         if not update:
             df = self.db.query_analysis_report(symbol, date)         
             if isinstance(df, pd.DataFrame) and not df.empty:
-                logger.info(f"Analysis report {symbol} at {date} exists.")
+                logger.info(f"🟡 Analysis report {symbol} at {date} exists.")
                 return True
         
         data = dict()
@@ -763,7 +762,7 @@ class StrategyHelper():
         while(date <= today):
             date_str = date.strftime("%Y-%m-%d")
             if self.analysis(symbol, date_str, update=update):
-                logger.info(F"⚠️ ✅Analysis report {symbol} at {date_str} finished.")
+                logger.info(F"💚Analysis report {symbol} at {date_str} finished.")
             date = date + timedelta(days=1)
 
     def update_latest(self, symbols:list[str]=CRITICAL_STOCKS_US, days:int=2, update:bool=False):
@@ -796,12 +795,12 @@ if __name__ == "__main__":
         "AMD",
         "INTC"
     ]
-    symbols, update = ["NVDA", "META"], True
+    symbols, update = ["AMD"], True
     #update = True
     helper = StrategyHelper()
     #helper.analysis("XPEV", "2025-10-03", update=True)
     for symbol in symbols:
-        helper.update(symbol, 15, update=update)
+        helper.update(symbol, 2, update=update)
 
     """
     llm = OpenAIClient()

@@ -274,7 +274,7 @@ class QuantDB:
         if top_k is not None:
             sql += f" LIMIT {top_k}"
         df = self.db.query(sql)
-        df['date'] = df['date'].dt.strftime('%Y-%m-%d')
+        df['date'] = pd.to_datetime(df['date'], errors='coerce').dt.strftime('%Y-%m-%d')
         return df
 
     def update_analysis_report(self, df:pd.DataFrame):
