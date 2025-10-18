@@ -6,11 +6,10 @@ FINNHUB_API_KEY = "YOUR_FINNHUB_API_KEY"
 
 # 爬取股票列表
 CRITICAL_STOCKS = [
-    {"name":"NVDA", "exchange":"us"},
     {"name":"XPEV", "exchange":"us"},
     {"name":"LI", "exchange":"us"},
     {"name":"NIO", "exchange":"us"},
-    #{"name":"NVDA", "exchange":"us"},
+    {"name":"NVDA", "exchange":"us"},
     {"name":"TSLA", "exchange":"us"},
     {"name":"BABA", "exchange":"us"},
     {"name":"MU", "exchange":"us"},

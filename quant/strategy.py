@@ -115,8 +115,7 @@ class Strategy:
     def __init__(self, llm:LLMClient, db:QuantDB=QuantDB()):
         self.llm = llm
         self.db = db
-        self.columns = ['date', 'open', 'close', 'high', 'low', 'volume']
-
+        self.columns = ['date', 'open', 'close', 'high', 'low', 'volume', 'ema_short', 'ema_long', 'macd', 'signal', 'hist']
     def analyze(self, 
             df_day: pd.DataFrame, 
             df_week: pd.DataFrame,
@@ -182,7 +181,7 @@ class Strategy:
         # 6. 构造 prompt
         prompt = self.build_prompt(analysis)
 
-        #logger.info(prompt)
+        logger.info(prompt)
 
         # 7. 调用 LLM
         report = self.llm.chat(prompt)
@@ -800,7 +799,7 @@ if __name__ == "__main__":
     helper = StrategyHelper()
     #helper.analysis("XPEV", "2025-10-03", update=True)
     for symbol in symbols:
-        helper.update(symbol, 2, update=update)
+        helper.update(symbol, 4, update=update)
 
     """
     llm = OpenAIClient()
