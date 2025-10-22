@@ -296,8 +296,11 @@ if __name__ == '__main__':
     sql = "select * from stock_price where symbol='XPEV' and interval = '1min' ORDER BY date DESC"
     sql = "select * from stock_info where symbol='XPEV'"
     sql = "select a.symbol, b.close as price from stock_price a inner join stock_price b on a.symbol = b.symbol and a.interval = b.interval and b.close >= a.close * 1.5 where a.interval = 'daily' and SUBSTR(a.date, 1, 10) = '2025-10-01' and SUBSTR(b.date, 1, 10) = '2025-10-12'" 
-    df = db.query(sql)
-    print(df.head())
+    sql = "delete from analysis_report where symbol = 'XPEV' and SUBSTR(date, 1, 4) = '2024'"
+    rows = db.update_sql(sql)
+    print(rows)
+    #df = db.query(sql)
+    #print(df.head)
 
     """
     # 显示所有行

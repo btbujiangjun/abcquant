@@ -88,11 +88,13 @@ class BaseStockSpider(ABC):
 
     def latest_stock_data(self, symbol:str):
         """获取某个股票所有 interval 的最新数据"""
+        dfs = []
         for interval in self.intervals:
             df = self.db.latest_stock_price(symbol, interval)
             latest_date = "1970-01-01" if df.empty else df.at[0, "date"].split()[0]
             df = self.fetch_stock_data(symbol, interval, latest_date, self.today)
-            self.update_stock_price(df)
+            dfs.append(df)
+        self.update_stock_price(pd.concat(dfs, ignore_index=True))
 
     def update_latest(self, symbols:list[str]=None, workers:int=1):
         """更新全部股票价格数据（支持并发）"""
@@ -118,10 +120,10 @@ class BaseStockSpider(ABC):
                 try:
                     future.result()
                     done_count += 1
-                    logger.info(f"[{done_count}/{total}] ✅ DONE: {sym}")
+                    logger.info(f"✅ [{done_count}/{total}] DONE: {sym}")
                 except Exception as e:
                     done_count += 1
-                    logger.error(f"[{done_count}/{total}] ❌ FAIL: {sym} ({e})")
+                    logger.error(f"❌ [{done_count}/{total}] FAIL: {sym} ({e})")
 
     # ========= 抽象接口 ========= 
     @abstractmethod
@@ -300,16 +302,8 @@ class YF_US_Spider(BaseStockSpider):
                     auto_adjust=False,
                     threads=False  # ✅ 避免多线程下载时难以捕获异常
                 )
-        
-        df = self._retry(_do_download)
-        if df is None:
-            logger.warning(f"{symbol}: No data returned(无效代码或无数据区间)")
-            self.db.update_stock_status(symbol, 2)
-            return pd.DataFrame() 
-        else:
-            logger.info(f"{symbol}: {len(df)} rows downloaded")
-            self.db.update_stock_status(symbol, 1)
-            return df
+
+        return self._retry(_do_download)
 
     def fetch_stock_data(self,
             symbol: str, 

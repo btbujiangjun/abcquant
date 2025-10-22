@@ -262,6 +262,7 @@ async function searchStock(symbol=null){
         const scoreData = reportData.filter(r=>r.three_filters_score!==null).map(r=>({time:r.date,value:parseFloat(r.three_filters_score)})).sort((a,b)=>new Date(a.time)-new Date(b.time));
         warningData = scoreData.map(d => ({ ...d, value: 0.0 }));
         goodData = scoreData.map(d => ({ ...d, value: 0.7 }));
+        console.log(priceData)
         if(scoreData.length>0){priceLineSeries.setData(priceData);scoreLineSeries.setData(scoreData);scoreLineWarning.setData(warningData);scoreLineGood.setData(goodData);scoreChart.timeScale().fitContent();}
     } else { tbody.innerHTML='<tr><td>暂无分析报告</td></tr>'; }
 }

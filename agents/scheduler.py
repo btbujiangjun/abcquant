@@ -42,7 +42,6 @@ class Scheduler:
             next_run_time=datetime.now(),
             kwargs={"name":"Hour job for critical stocks"}
         )
-        """
 
         self.scheduler.add_job(
             us_spider_job, 
@@ -53,6 +52,8 @@ class Scheduler:
             #minute=0,
             kwargs={"name":"Yfinance US spider price"}
         )
+
+        """
         self.scheduler.add_job(
             strategy_job, 
             "date",

@@ -803,12 +803,12 @@ if __name__ == "__main__":
         "AMD",
         "INTC"
     ]
-    symbols, update = ["VIX"], True
-    #update = True
+    symbols, update = ["XPEV"], True
+    #update = False
     helper = StrategyHelper()
     #helper.analysis("XPEV", "2025-10-03", update=True)
     for symbol in symbols:
-        helper.update(symbol, 2, update=update)
+        helper.update(symbol, 500, update=update)
 
     """
     llm = OpenAIClient()
