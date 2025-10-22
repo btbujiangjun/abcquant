@@ -37,7 +37,7 @@ class OllamaClient(LLMClient):
         super().__init__(temperature)
         self.model = model or OLLAMA_CONFIG["model"]
         self.base_url = base_url or OLLAMA_CONFIG["base_url"]
-
+        self.seed = 422
     def chat(
             self, 
             prompt:str,
@@ -56,6 +56,7 @@ class OllamaClient(LLMClient):
                 ],
                 options={
                     "temperature": temperature or self.temperature,
+                    "seed": self.seed,
                     "enable_thinking": False
                 }
             )
@@ -82,7 +83,7 @@ class OllamaClient(LLMClient):
                 options={
                     "temperature": temperature or self.temperature,
                     "enable_thinking": False,
-                    "seed": 42,
+                    "seed": self.seed,
                 }
             )
             return response.message.content.strip()

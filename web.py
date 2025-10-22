@@ -89,7 +89,6 @@ def get_analysis_report(symbol: str):
         }
         for _, row in df.iterrows()
     ]
-    print(data)
     return data
 
 def safe_get(row, key, default=None):

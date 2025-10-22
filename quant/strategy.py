@@ -115,7 +115,9 @@ class Strategy:
     def __init__(self, llm:LLMClient, db:QuantDB=QuantDB()):
         self.llm = llm
         self.db = db
-        self.columns = ['date', 'open', 'close', 'high', 'low', 'volume', 'ema_short', 'ema_long', 'macd', 'signal', 'hist']
+        self.columns = ['date', 'open', 'close', 'high', 'low', 'volume']
+        #, 'ema_short', 'ema_long', 'macd', 'signal', 'hist']
+
     def analyze(self, 
             df_day: pd.DataFrame, 
             df_week: pd.DataFrame,
@@ -144,8 +146,8 @@ class Strategy:
             interval="weekly",
             date=date, 
             top_k=week_peroid
-        )
-        
+        )   
+     
         # 2. 数据有效性检验
         latest_day  = df_day['date'].iat[-1].split()[0]
         latest_week = df_week['date'].iat[-1].split()[0]
@@ -185,17 +187,23 @@ class Strategy:
 
         # 7. 调用 LLM
         report = self.llm.chat(prompt)
-        
-        # 8. 提取 score
+       
+        # 8. remove think block
+        think_str = "</think>"
+        idx = report.rfind(think_str)
+        if idx > -1:
+            report = report[idx + len(think_str):]
+ 
+        # 9. 提取 score
         score = None
-        match = re.search(r"<score>([-+]?\d*\.?\d+)</score>", report)
-        if match:
+        matches = re.findall(r"<score>([-+]?\d*\.?\d+)</score>", report)
+        if matches:
             try:
-                score = float(match.group(1))
+                score = float(matches[-1])
             except ValueError:
                 score = None
 
-        # 9. 返回格式化结果
+        # 10. 返回格式化结果
         return {
             "symbol": symbol,
             "date": df_day["date"].iat[-1],
@@ -245,7 +253,7 @@ class ThreeFilterStrategy(Strategy):
        
         return f"""
 你是一名专业的量化分析师，擅长通过技术形态识别股价趋势。  
-请根据提供的数据进行分析：
+请严格根据以下数据进行分析：
 ### 三层滤网策略详细分析
 ### 股票信息
 - 股票代码：{today["symbol"]}, 国家：{today["country"]}, 行业：{today["industry"]}, 板块：{today["sector"]}, 价格：{json.loads(analysis["stock_info"])["currentPrice"]}, 52周最高价：{today["fifty_two_week_high"]}, 52周最低价：{today["fifty_two_week_low"]}, 做空率：{today["short_ratio"]}
@@ -757,6 +765,7 @@ class StrategyHelper():
             if isinstance(df, pd.DataFrame) and not df.empty:
                 date = datetime.strptime(df["date"].iat[-1], "%Y-%m-%d")
                 date = date + timedelta(days=1)
+                logger.info(f"Skip to latest day:{date} for {symbol}")
         
         while(date <= today):
             date_str = date.strftime("%Y-%m-%d")
@@ -794,12 +803,12 @@ if __name__ == "__main__":
         "AMD",
         "INTC"
     ]
-    symbols, update = ["AMD"], True
+    symbols, update = ["VIX"], True
     #update = True
     helper = StrategyHelper()
     #helper.analysis("XPEV", "2025-10-03", update=True)
     for symbol in symbols:
-        helper.update(symbol, 4, update=update)
+        helper.update(symbol, 2, update=update)
 
     """
     llm = OpenAIClient()

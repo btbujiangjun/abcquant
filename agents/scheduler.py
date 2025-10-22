@@ -23,7 +23,7 @@ def hour_job(name:str="hour job for ctritical stock"):
     spider = YF_US_Spider()
     spider.update_latest(symbols=CRITICAL_STOCKS_US)
     strategy = StrategyHelper()
-    strategy.update_latest(symbols=CRITICAL_STOCKS_US, days=20, update=True)
+    strategy.update_latest(symbols=CRITICAL_STOCKS_US, days=5, update=False)
 
 class Scheduler:
     def __init__(self):

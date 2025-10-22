@@ -16,6 +16,7 @@ CRITICAL_STOCKS = [
     {"name":"TQQQ", "exchange":"us"},
     {"name":"SQQQ", "exchange":"us"},
     {"name":"QQQ", "exchange":"us"},
+    {"name":"VIX", "exchange":"us"},
     {"name":"PDD", "exchange":"us"},
     {"name":"NBIS", "exchange":"us"},
     {"name":"CRWV", "exchange":"us"},
@@ -35,6 +36,7 @@ CRITICAL_STOCKS = [
     {"name":"AVGO", "exchange":"us"},
     {"name":"BIDU", "exchange":"us"},
     {"name":"EOSE", "exchange":"us"},
+    {"name":"BTC-USD", "exchange":"us"},
 ]
 
 CRITICAL_STOCKS_US = [stock["name"] for stock in CRITICAL_STOCKS if stock["exchange"]=="us"]

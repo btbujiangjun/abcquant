@@ -53,14 +53,14 @@ button:hover { background-color:#2980b9; }
 <div class="main-container">
     <div class="sidebar" id="sidebar">
         <h2>功能导航</h2>
-        <button class="tab-btn active" data-tab="tab1">股票分析</button>
+        <button class="tab-btn active" data-tab="tab1">股票分析💹</button>
         <button class="tab-btn" data-tab="tab2">其他功能1</button>
         <button class="tab-btn" data-tab="tab3">其他功能2</button>
         <button class="toggle-btn" id="toggleSidebar">⏴</button>
     </div>
     <div class="content" id="content">
         <div class="tab-content active" id="tab1">
-            <h1>📈 🚀<span class="gradient-h1-title">基于LLM的股票K线分析系统</span>🐂 💹 💰</h1>
+            <h1>🚀<span class="gradient-h1-title">基于LLM的股票K线分析系统</span>💰</h1>
             <div class="toolbar">
                 <select id="stockSelector"></select>
                 <input type="text" id="stockSearch" placeholder="输入股票代码或名称搜索">
@@ -102,7 +102,7 @@ button:hover { background-color:#2980b9; }
 
 <script>
 let chart, candleSeries, volumeSeries, ema5Series, ema20Series;
-let scoreChart, scoreLineSeries, scoreLineWarning, scoreLineGood;
+let scoreChart, scoreLineSeries, priceLineSeries, scoreLineWarning, scoreLineGood;
 let currentSymbol='';
 let latestKlines=[];
 let isChartInit=false, isScoreChartInit=false;
@@ -119,10 +119,11 @@ function initChart(){
 }
 function initScoreChart(){
     const container=document.getElementById('scoreChart');
-    scoreChart = LightweightCharts.createChart(container,{width:container.clientWidth,height:300,layout:{background:{color:'#fff'},textColor:'#333'},grid:{vertLines:{color:'#eee'},horzLines:{color:'#eee'}},timeScale:{timeVisible:true},rightPriceScale:{visible:true}});
-    scoreLineSeries=scoreChart.addLineSeries({color:getColorByScore(0.2),lineWidth:2,title:'得分',crosshairMarkerVisible:false});
-    scoreLineWarning=scoreChart.addLineSeries({color:getColorByScore(-0.1),lineWidth:2,title:'🐻🐻 离场线',crosshairMarkerVisible:false});
-    scoreLineGood=scoreChart.addLineSeries({color:getColorByScore(0.8),lineWidth:2,title:'🐮🐮 入场线',crosshairMarkerVisible:false});
+    scoreChart = LightweightCharts.createChart(container,{width:container.clientWidth,height:300,layout:{background:{color:'#fff'},textColor:'#333'},grid:{vertLines:{color:'#eee'},horzLines:{color:'#eee'}},timeScale:{timeVisible:true},leftPriceScale:{visible:true},rightPriceScale:{visible:true}});
+    scoreLineSeries=scoreChart.addLineSeries({priceScaleId:'right',color:getColorByScore(0.2),lineWidth:3,title:'得分',priceLineVisible:false,crosshairMarkerVisible:true});
+    priceLineSeries=scoreChart.addLineSeries({priceScaleId:'left',color:'rgba(0,0,0,0.7)',lineWidth:2,title:'📈 收盘价',priceLineVisible:false,crosshairMarkerVisible:true,lineStyle:0});
+    scoreLineWarning=scoreChart.addLineSeries({color:getColorByScore(-0.1),lineWidth:1,title:'🐻 离场线',crosshairMarkerVisible:false,lineStyle:0});
+    scoreLineGood=scoreChart.addLineSeries({color:getColorByScore(0.7),lineWidth:1,title:'🐮 入场线',crosshairMarkerVisible:false,lineStyle:0});
     isScoreChartInit=true;
 }
 
@@ -168,6 +169,8 @@ function showReport(text){
     .replace(/\b(EMA|ema_short|ema_long)\b/g,m=>`<span style="color:${getRandomFromArray(indicatorColors.EMA)};font-weight:600;">${m}</span>`)
     .replace(/\b(MACD)\b/g,m=>`<span style="color:${getRandomFromArray(indicatorColors.MACD)};font-weight:600;">${m}</span>`)
     .replace(/(?<![A-Za-z0-9])(成交量|VOL)(?![A-Za-z0-9])/g,m=>`<span style="color:${getRandomFromArray(indicatorColors.VOL)};font-weight:600;">${m}</span>`)
+    .replace(/(?<![A-Za-z0-9])(趋势)(?![A-Za-z0-9])/g,m=>`<span style="color:${getRandomColor()};font-weight:600;">${m}</span>`)
+    .replace(/(?<![A-Za-z0-9])(动量|动能)(?![A-Za-z0-9])/g,m=>`<span style="color:${getRandomColor()};font-weight:600;">${m}</span>`)
     .replace(/(?<![A-Za-z0-9])(价格|price)(?![A-Za-z0-9])/g,m=>`<span style="color:${getRandomFromArray(indicatorColors.PRICE)};font-weight:600;">${m}</span>`)
     .replace(/\b(RSI)\b/g,m=>`<span style="color:${getRandomFromArray(indicatorColors.RSI)};font-weight:600;">${m}</span>`)
     .replace(/\b(KDJ|KD|J)\b/g,m=>`<span style="color:${getRandomFromArray(indicatorColors.KDJ)};font-weight:600;">${m}</span>`)
@@ -255,10 +258,11 @@ async function searchStock(symbol=null){
             tbody.appendChild(tr);
         });
 
+        const priceData = reportData.filter(r=>r.three_filters_score!==null).map(r=>({time:r.date,value:r.price?.toFixed(2)})).sort((a,b)=>new Date(a.time)-new Date(b.time));
         const scoreData = reportData.filter(r=>r.three_filters_score!==null).map(r=>({time:r.date,value:parseFloat(r.three_filters_score)})).sort((a,b)=>new Date(a.time)-new Date(b.time));
-        warningData = scoreData.map(d => ({ ...d, value: 0.2 }));
-        goodData = scoreData.map(d => ({ ...d, value: 0.8 }));
-        if(scoreData.length>0){ scoreLineSeries.setData(scoreData);scoreLineWarning.setData(warningData);scoreLineGood.setData(goodData);scoreChart.timeScale().fitContent(); }
+        warningData = scoreData.map(d => ({ ...d, value: 0.0 }));
+        goodData = scoreData.map(d => ({ ...d, value: 0.7 }));
+        if(scoreData.length>0){priceLineSeries.setData(priceData);scoreLineSeries.setData(scoreData);scoreLineWarning.setData(warningData);scoreLineGood.setData(goodData);scoreChart.timeScale().fitContent();}
     } else { tbody.innerHTML='<tr><td>暂无分析报告</td></tr>'; }
 }
 

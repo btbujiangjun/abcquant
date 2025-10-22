@@ -159,17 +159,11 @@ class YF_US_Spider(BaseStockSpider):
             "weekly": {"code":"1wk","valid": 729},
             "monthly": {"code":"1mo","valid": 729},
         }
-        self.EXCHANGE_MAP = {
-            'A': 'amex',
-            'N': 'nyse',
-            'P': 'nyse',
-            'Z': 'bats',
-            'Q': 'nasdaq'
-        }
         self.TICKER_ALIAS = {
             "IXIC": "^IXIC",   # 纳指
             "DJI": "^DJI",     # 道指
             "SPX": "^GSPC",    # 标普500
+            "VIX": "^VIX",    # 标普500波动率
         }
         self.extend_symbols = CRITICAL_STOCKS_US
 
@@ -210,7 +204,6 @@ class YF_US_Spider(BaseStockSpider):
         })
 
         others = self._fetch_list(files['others'], "others")
-        #others['exchange'] = others['Exchange'].map(lambda x: self.EXCHANGE_MAP.get(x, 'unknown'))
         others = others[['ACT Symbol', 'Security Name', 'exchange']]
         others = others.rename(columns={
             'ACT Symbol': 'symbol',
@@ -496,13 +489,19 @@ class AK_HK_Spider(BaseStockSpider):
         df["symbol"], df["interval"] = symbol, interval
         return df[self.data_format]
 
+    def fetch_stock_info(self, symbols:list[str], batch_size:int=50):
+        return ak.stock_hk_company_profile_em(symbols[0])
 
 if __name__ == "__main__":
     #a_spider = AK_A_Spider()
     #hk_spider = AK_HK_Spider()
     #df = a_spider.fetch_stock_data("000001", "5min", "20250901", "20250902")
-    #df = hk_spider.fetch_stock_data("00700", "5min", "20250901", "20250902")
-    
+    #symbol = "BTC-USD"
+    #df = hk_spider.fetch_stock_data(symbol, "daily", "20250901", "20250902")
+    #print(df.head())
+    #print([attr for attr in dir(ak) if 'hk' in attr])
+    #info = hk_spider.fetch_stock_info([symbol])
+    #print(info) 
     #a_spider.refresh_stock_base() 
     #hk_spider.refresh_stock_base() 
     
@@ -514,21 +513,20 @@ if __name__ == "__main__":
     us = YF_US_Spider()
     #us.refresh_stock_base()
     #us.update_stock_info()
-    us.update_latest()
+    #us.update_latest()
     """
     us.refresh_stock_base()
     df = us.query_stock_base(exchange="nasdaq")
-    
-    ticker = "XPEV"
+    """
+    ticker = "BTC-USD"
 
-    df = us.query_stock_price(ticker, "1min", 360)    
-    print(df)
+    #df = us.query_stock_price(ticker, "1min", 360)    
+    #print(df)
     df = us.latest_stock_data(ticker)
     print(df)
-    df = us.query_stock_price(ticker, "1min")    
+    df = us.query_stock_price(ticker, "daily")    
     print(df)
     
-    """
 
 
 

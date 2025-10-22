@@ -6,6 +6,7 @@ import pandas as pd
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy import create_engine, Table, MetaData,UniqueConstraint
 from utils.logger import logger
+from core.interval import DAY_INTERVAL 
 
 class DB:
     def __init__(self, db_path):
@@ -253,6 +254,9 @@ class QuantDB:
             by="date", 
             ascending=True
         ).reset_index(drop=True)
+
+        if interval in DAY_INTERVAL:
+            df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
 
         return df.round(2)
 
