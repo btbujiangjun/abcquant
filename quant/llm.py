@@ -1,9 +1,10 @@
 import openai
 import ollama
 import asyncio
+from openai import OpenAI
 from openai import AsyncOpenAI
 from abc import ABC, abstractmethod
-from config import OpenAI_CONFIG, OLLAMA_CONFIG
+from config import OpenAI_CONFIG, OLLAMA_CONFIG, MODELSCOPE_CONFIG
 
 class LLMClient(ABC):
     def __init__(self, temperature:float = 0):
@@ -26,6 +27,72 @@ class LLMClient(ABC):
             temperature: float = None,
             top_p: float = 0,
         ) -> str: ...
+
+class ModelScopeClinet(LLMClient):
+    def __init__(
+            self,
+            model:str=None, 
+            api_key:str=None,
+            base_url:str=None,
+            temperature:float=0,
+            default_headers:dict=None,
+        ):
+        super().__init__(temperature)
+        self.model = model or MODELSCOPE_CONFIG["model"]
+        self.client = OpenAI(
+            api_key = api_key or MODELSCOPE_CONFIG["api_key"],
+            base_url = base_url or MODELSCOPE_CONFIG["base_url"],
+        )       
+        self.async_client = AsyncOpenAI(
+            api_key = api_key or MODELSCOPE_CONFIG["api_key"],
+            base_url = base_url or MODELSCOPE_CONFIG["base_url"],
+        )
+         
+    def chat(
+            self, 
+            prompt:str,
+            max_tokens: int = 8192,
+            temperature: float = None,
+            top_p: float = 0,
+        ) -> str:
+        try:
+            completion = self.client.chat.completions.create(
+                model = self.model,
+                temperature = temperature or self.temperature,
+                messages = [
+                    {
+                        "role": "user", 
+                        "content": prompt
+                    }
+                ],
+            )
+            return completion.choices[0].message.content.strip()
+        except Exception as e:
+            raise RuntimeError(f"OpenAI async chat failed: {e}") from e
+
+    async def achat(
+        self,
+        prompt:str,
+        max_tokens: int = 8192,
+        temperature: float = None,
+        top_p: float = 0,
+    ) -> str:
+        try:
+            completion = await self.async_client.chat.completions.create(
+                model=self.model,
+                temperature= temperature or self.temperature,
+                max_tokens=max_tokens,
+                top_p=top_p,
+                messages=[
+                    {
+                        "role": "user", 
+                        "content": prompt
+                    }
+                ],
+            )
+            return completion.choices[0].message.content.strip()
+        except Exception as e:
+            raise RuntimeError(f"OpenAI async chat failed: {e}") from e
 
 class OllamaClient(LLMClient):
     def __init__(

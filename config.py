@@ -77,11 +77,17 @@ OpenAI_CONFIG = {
     "api_key": "sk-EiUbTR3acpNJkHhPoQBz5E35YW1jOLJRt7yE8vhU3aQuSx32"
 }
 """
+
+MODELSCOPE_CONFIG = {
+    "model": "deepseek-ai/DeepSeek-V3.2-Exp",
+    "base_url": "https://api-inference.modelscope.cn/v1/",
+    "api_key": "ms-ea724408-36bc-4adc-92c7-f9742d2b147f",
+}
 OLLAMA_CONFIG = {
     #"model": "gpt-oss:20b",
     #"model": "gemma3:27b",
-    #"model": "qwen3:30b",
-    "model": "deepseek-v3.1:671b-cloud",
+    "model": "qwen3:30b",
+    #"model": "deepseek-v3.1:671b-cloud",
     #"model": "gpt-oss:120b-cloud",
     "base_url": "http://localhost:11434/api/chat" 
 }

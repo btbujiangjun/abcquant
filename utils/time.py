@@ -1,23 +1,45 @@
 from datetime import datetime, timedelta
 
+def _get_format(date_format : str="YYMMDD") -> str:
+    date_format = date_format.upper()
+    if date_format == "YYMMDD":
+        return "%Y-%m-%d"
+    elif date_format == "YMD":
+        return "%Y%m%d"
+    else:
+        return "%Y-%m-%d %H:%M:%S"
+
+def _match_format(date_str:str) -> str:
+    if len(date_str) == 8:
+        return _get_format("YMD")
+    elif len(date_str) == 10:
+        return _get_format("YYMMDD")
+    else:
+        return _get_format("YYMMDDHHMMSS")
+
+def today():
+    return datetime.today()
+
+def today_str(date_format : str = "YYMMDD") -> str:
+    return today().strftime(_get_format(date_format))
+
 def is_today(date_str:str) -> bool:
     try:
-        return datetime.strptime(date_str, "%Y-%m-%d").date() == datetime.today().date()
+        return datetime.strptime(date_str, _get_format()).date() == datetime.today().date()
     except ValueError:
         return False  # 格式不正确
 
 def is_yesterday(date_str:str) -> bool:
-    """
-    判断 date_str 是否为昨天
-    :param date_str: 字符串，格式 'yyyy-mm-dd'
-    :return: True/False
-    """
+    print(date_str)
     try:
-        date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+        date_obj = datetime.strptime(date_str, _match_format(date_str)).date()
     except ValueError:
         return False  # 格式不正确
-    yesterday = (datetime.today() - timedelta(days=1)).date()
+    yesterday = (today() - timedelta(days=1)).date()
     return date_obj == yesterday
 
-def days_delta_yyyymmdd(date_str:str, days:int) -> str:
-    return (datetime.strptime(date_str, "%Y-%m-%d") + timedelta(days=days)).strftime("%Y-%m-%d")
+def days_delta(date_str:str, days:int) -> str:
+    date_format = _match_format(date_str)
+    return (datetime.strptime(date_str, date_format) + timedelta(days=days)).strftime(date_format)
+
+

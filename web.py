@@ -9,20 +9,39 @@ from db import QuantDB
 from utils.logger import logger
 from core.interval import DAY_INTERVAL
 from config import CRITICAL_STOCKS_US
+from analysis.dragon import Dragon
 
 app = FastAPI()
-db = QuantDB()
+db_path = "./data/quant_data.db"
+db = QuantDB(db_path=db_path)
+dragon = Dragon(db_path=db_path)
 
 # 绑定模板目录
 templates = Jinja2Templates(directory="templates")
-
+app.mount("/static", StaticFiles(directory="static"), name="static")
 # ===================
 # 前端页面
 # ===================
 @app.get("/", response_class=HTMLResponse)
 def get_index(request: Request):
     """返回前端页面"""
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse("stock.html", {"request": request})
+
+@app.get("/dragon")
+async def dragon_page(request: Request):
+    return templates.TemplateResponse("dragon.html", {"request": request})
+
+@app.get("/api/dragon")
+async def get_dragon_data(date: str = None):
+    rise_df = dragon.get_growth(flag="TopGainers", date=date)
+    fall_df = dragon.get_growth(flag="TopLosers", date=date)
+    return {
+        "Top_Gainers": [{"date": row["date"], "symbol": row["symbol"], "prev_close": row["prev_close"], "latest_close": row["latest_close"], "pct": row["pct_change"]} for _, row in rise_df.iterrows()],
+        "Top_Losers": [{"date": row["date"], "symbol": row["symbol"], "prev_close": row["prev_close"], "latest_close": row["latest_close"], "pct": row["pct_change"]} for _, row in fall_df.iterrows()],
+        "sell_top10": [{"symbol": "000858", "name": "五粮液", "value": 9200}],
+        "netbuy_top10": [{"symbol": "300750", "name": "宁德时代", "value": 4800}],
+        "active_top10": [{"symbol": "600036", "name": "招商银行", "value": 98}],
+    }
 
 
 # ===================
@@ -32,16 +51,11 @@ def get_index(request: Request):
 def get_us_stocks():
     """获取股票列表"""
     return [{"symbol": symbol, "name": symbol} for symbol in CRITICAL_STOCKS_US]
-    df = db.query_stock_base(exchange="us", top_k=500)
-    if df.empty:
-        return []
-    return [{"symbol": row["symbol"], "name": row["name"]} for _, row in df.iterrows()]
-
 
 @app.get("/klines/{symbol}")
-def get_klines(symbol: str, interval: str = "daily"):
+def get_klines(symbol: str, interval: str = "daily", start_date: str = None, end_date: str = None):
     """获取K线数据"""
-    df = db.query_stock_price(symbol, interval=interval)
+    df = db.query_stock_price(symbol, interval=interval, start_date=start_date, end_date=end_date)
     if df.empty:
         raise HTTPException(status_code=404, detail="未找到该股票的K线数据")
 
@@ -64,9 +78,9 @@ def get_klines(symbol: str, interval: str = "daily"):
 
 
 @app.get("/quant_report/{symbol}")
-def get_analysis_report(symbol: str):
+def get_analysis_report(symbol: str, start_date: str = None, end_date: str = None):
     """获取量化分析报告"""
-    df = db.query_analysis_report(symbol, score_only=False)
+    df = db.query_analysis_report(symbol, top_k=None, start_date = start_date, end_date = end_date, score_only=False)
     if df.empty:
         raise HTTPException(status_code=404, detail="未找到该股票分析报告")
 

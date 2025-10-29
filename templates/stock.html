@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>股票分析 - LLM K线系统</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+<div class="main-container">
+  <div class="sidebar" id="sidebar">
+    <h2>功能导航</h2>
+    <button class="tab-btn active" onclick="location.href='/'">股票分析💹</button>
+    <button class="tab-btn" onclick="location.href='/dragon'">🐲龙🐯榜🔥</button>
+    <button class="tab-btn" onclick="location.href='other2.html'">其他功能2</button>
+    <button class="toggle-btn" id="toggleSidebar">⏴</button>
+  </div>
+  <div class="content" id="content">
+    <h1>🚀<span class="gradient-h1-title">基于LLM的股票K线分析系统</span>💰</h1>
+    <div class="toolbar">
+      <select id="stockSelector"></select>
+      <input type="text" id="stockSearch" placeholder="输入股票代码或名称搜索">
+      <label for="startDate">起始日期</label>
+      <input type="date" id="startDate" value="">
+      <label for="endDate">结束日期</label>
+      <input type="date" id="endDate" value="">
+      <select id="intervalSelector">
+        <option value="daily" selected>日线</option>
+        <option value="weekly">周线</option>
+        <option value="monthly">月线</option>
+      </select>
+      <button onclick="searchStock()">查询</button>
+    </div>
+    <div id="scoreChartTitle" class="gradient-title">分析报告得分折线图</div>
+    <div id="scoreChart"></div>
+    <div id="chartTitle" class="gradient-title">K线图</div>
+    <div id="chart"></div>
+    <div id="stockInfo">
+        <div id="stockInfoSummary">点击查看股票基本信息</div>
+        <div id="stockInfoDetail" style="display:none;"></div>
+    </div>
+    <table id="customTable">
+      <thead>
+        <tr><th colspan="4"><span class="gradient-title">分析报告</span></th></tr>
+      </thead>
+      <tbody id="customTableBody"><tr><td>请选择股票加载分析报告</td></tr></tbody>
+    </table>
+  </div>
+</div>
+<script src="/static/stock.js"></script>
+</body>
+</html>
+

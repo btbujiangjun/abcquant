@@ -8,7 +8,7 @@ from db import QuantDB
 from utils.time import *
 from utils.logger import logger
 from config import CRITICAL_STOCKS_US
-from quant.llm import LLMClient, OllamaClient, OpenAIClient
+from quant.llm import LLMClient, ModelScopeClinet, OllamaClient, OpenAIClient
 
 
 # =====================
@@ -151,7 +151,7 @@ class Strategy:
         # 2. 数据有效性检验
         latest_day  = df_day['date'].iat[-1].split()[0]
         latest_week = df_week['date'].iat[-1].split()[0]
-        covered_week = days_delta_yyyymmdd(latest_week, 7) 
+        covered_week = days_delta(latest_week, 7) 
         if latest_day != date or covered_week < date:
             raise PriceDataPeroidInvalidError(symbol, date, latest_day, latest_week)
         
@@ -718,7 +718,8 @@ class StrategyFactory:
 class StrategyHelper():
     def __init__(self):
         #self.llm = OpenAIClient()
-        self.llm = OllamaClient()
+        #self.llm = OllamaClient()
+        self.llm = ModelScopeClinet()
         strategy_names = [
             "three_filters", 
             "double_bottom", 
@@ -734,7 +735,7 @@ class StrategyHelper():
         if not update:
             df = self.db.query_analysis_report(symbol, date)         
             if isinstance(df, pd.DataFrame) and not df.empty:
-                logger.info(f"🟡 Analysis report {symbol} at {date} exists.")
+                logger.info(f"🟡 Analysis report {symbol} on {date} already exists.")
                 return True
         
         data = dict()
@@ -759,16 +760,16 @@ class StrategyHelper():
 
     def update(self, symbol: str, days: int=10, update=False):
         today = datetime.today()
-        date = today - timedelta(days=days)      
-        if not update:
-            df = self.db.query_analysis_report(symbol, top_k=1)        
-            if isinstance(df, pd.DataFrame) and not df.empty:
-                date = datetime.strptime(df["date"].iat[-1], "%Y-%m-%d")
-                date = date + timedelta(days=1)
-                logger.info(f"Skip to latest day:{date} for {symbol}")
-        
+        date = today - timedelta(days=days)
         while(date <= today):
             date_str = date.strftime("%Y-%m-%d")
+            if not update:
+                df = self.db.query_analysis_report(symbol, date=date_str, top_k=1)        
+                if isinstance(df, pd.DataFrame) and not df.empty:
+                    logger.info(f"🟡 Analysis report for {symbol} ({date_str}) already exists.")
+                    date = date + timedelta(days=1)
+                    continue
+
             if self.analysis(symbol, date_str, update=update):
                 logger.info(F"💚Analysis report {symbol} at {date_str} finished.")
             date = date + timedelta(days=1)
@@ -803,12 +804,12 @@ if __name__ == "__main__":
         "AMD",
         "INTC"
     ]
-    symbols, update = ["XPEV"], True
-    #update = False
+    symbols, update = ["LI", "NIO"], True
+    update = False
     helper = StrategyHelper()
     #helper.analysis("XPEV", "2025-10-03", update=True)
     for symbol in symbols:
-        helper.update(symbol, 500, update=update)
+        helper.update(symbol, 200, update=update)
 
     """
     llm = OpenAIClient()

@@ -1,6 +1,7 @@
 # db.py
 import os
-from typing import Dict, Tuple, Any
+import json
+from typing import List, Dict, Tuple, Any
 import sqlite3
 import pandas as pd
 from sqlalchemy.dialects.sqlite import insert
@@ -60,7 +61,6 @@ class DB:
         return affected_rows
 
     def update_sql_params(self, sql:str, values: Tuple[Any]) -> int:
-        import json
         safe_values = tuple(
             json.dumps(v, ensure_ascii=False) if isinstance(v, (dict, list)) else v
             for v in values
@@ -75,6 +75,24 @@ class DB:
                 cursor.close()
             except Exception as e:
                 logger.error(f"Error {sql}:{e}")
+                raise
+        return affected_rows
+
+    def update_sql_params_many(self, sql: str, values_list: List[Tuple[Any]]) -> int:
+        affected_rows = 0
+        with self.create_connection() as conn:
+            try:
+                cursor = conn.cursor()
+                safe_values_list = [
+                    tuple(json.dumps(v, ensure_ascii=False) if isinstance(v, (dict, list)) else v for v in values)
+                    for values in values_list
+                ]
+                cursor.executemany(sql, safe_values_list)
+                affected_rows = cursor.rowcount
+                conn.commit()
+                cursor.close()
+            except Exception as e:
+                logger.error(f"Error {sql}: {e}")
                 raise
         return affected_rows
  
@@ -197,7 +215,9 @@ class QuantDB:
 
     def refresh_stock_base(self, df):
         if isinstance(df, pd.DataFrame) and not df.empty:
-            self.db.update(df, "stock_base")
+            table_name = "stock_base"
+            delete_sql = f"DELETE FROM {table_name}"
+            self.db.update(df, table_name)
         else:
             logger.error("Refresh stock base error: data is not data frame.")
 
@@ -218,9 +238,18 @@ class QuantDB:
         )
         return df
 
-    def update_stock_info(self, keyvalues:Dict[str, Any]):
+    def update_stock_info(self, keyvalues:Dict[str, Any]) -> int:
         sql = f"INSERT or REPLACE INTO stock_info({','.join(keyvalues.keys())})VALUES({','.join(['?']*len(keyvalues))})"
-        self.db.update_sql_params(sql, keyvalues.values())
+        return self.db.update_sql_params(sql, keyvalues.values())
+
+    def update_stock_info_batch(self, records: List[dict]) -> int:
+        if not records:
+            return
+
+        keys = list(records[0].keys())
+        sql = f"INSERT OR REPLACE INTO stock_info({','.join(keys)}) VALUES({','.join(['?'] * len(keys))})"
+        values_list = [tuple(record[k] for k in keys) for record in records]
+        return self.db.update_sql_params_many(sql, values_list)
 
     def query_stock_info(self, symbol:str):
         sql = f"SELECT a.*, b.name FROM stock_info a left join stock_base b on a.symbol = b.symbol WHERE a.symbol = '{symbol}'"
@@ -237,7 +266,9 @@ class QuantDB:
             symbol: str, 
             interval: str=None,
             date: str=None, 
-            top_k:int=None
+            top_k:int=None,
+            start_date:str=None,
+            end_date:str=None
         ):
         sql = "SELECT a.*, b.current_price, b.fifty_two_week_high, b.fifty_two_week_low, b.short_ratio, b.country, b.industry, b.sector, b.recommendation FROM stock_price a LEFT JOIN stock_info b ON a.symbol = b.symbol" 
         if symbol is not None:
@@ -246,6 +277,10 @@ class QuantDB:
             sql += f" AND a.interval = '{interval}'"
         if date is not None:
             sql += f" AND SUBSTR(a.date, 1, 10) <= '{date}'"
+        if start_date is not None:
+            sql += f" AND SUBSTR(a.date, 1, 10) >= '{start_date}'"
+        if end_date is not None:
+            sql += f" AND SUBSTR(a.date, 1, 10) <= '{end_date}'"
         sql += " ORDER BY a.date DESC"
         if top_k:
             sql += f" LIMIT {top_k}"
@@ -268,12 +303,18 @@ class QuantDB:
             symbol: str, 
             date: str=None,
             top_k: int=20,
+            start_date:str=None,
+            end_date:str=None,
             score_only: bool=True,
         ) -> pd.DataFrame:
         fields = "a.symbol, a.date, b.close, three_filters_score, double_bottom_score, double_top_score, cup_handle_score, update_time" if score_only else "a.*, b.close"
         sql = f"SELECT {fields} FROM analysis_report a left join stock_price b on a.symbol = b.symbol WHERE a.symbol = '{symbol}' AND a.date = SUBSTR(b.date, 1, 10) AND b.interval = 'daily'"
         if date is not None:
             sql += f" AND a.date = '{date}'"
+        if start_date is not None:
+            sql += f" AND a.date >= '{start_date}'"
+        if end_date is not None:
+            sql += f" AND a.date <= '{end_date}'"
         sql += " ORDER BY a.date DESC"
         if top_k is not None:
             sql += f" LIMIT {top_k}"
@@ -289,18 +330,17 @@ class QuantDB:
 
 
 if __name__ == '__main__':
+    pd.set_option('display.max_columns', None)
+    pd.set_option('display.max_colwidth', None)
+    pd.set_option('display.max_rows', None)
 
     db = DB("./data/quant_data.db")
     #sql = "ALTER TABLE stock_info ADD COLUMN update_time TEXT"
     #db.ddl(sql)
-    sql = "select * from stock_price where symbol='XPEV' and interval = '1min' ORDER BY date DESC"
-    sql = "select * from stock_info where symbol='XPEV'"
-    sql = "select a.symbol, b.close as price from stock_price a inner join stock_price b on a.symbol = b.symbol and a.interval = b.interval and b.close >= a.close * 1.5 where a.interval = 'daily' and SUBSTR(a.date, 1, 10) = '2025-10-01' and SUBSTR(b.date, 1, 10) = '2025-10-12'" 
-    sql = "delete from analysis_report where symbol = 'XPEV' and SUBSTR(date, 1, 4) = '2024'"
-    rows = db.update_sql(sql)
-    print(rows)
-    #df = db.query(sql)
-    #print(df.head)
+    sql = "select * from stock_price where symbol='XPEV' and interval = 'daily' ORDER BY date DESC LIMIT 10"
+#    sql = "select * from analysis_report where symbol='XPEV' ORDER BY date ASC LIMIT 5"
+    df = db.query(sql)
+    print(df.head)
 
     """
     # 显示所有行

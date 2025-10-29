@@ -52,7 +52,6 @@ class Scheduler:
             #minute=0,
             kwargs={"name":"Yfinance US spider price"}
         )
-
         """
         self.scheduler.add_job(
             strategy_job, 

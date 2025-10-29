@@ -13,8 +13,9 @@ import akshare as ak
 import yfinance as yf
 
 from db import QuantDB
-from config import CRITICAL_STOCKS_US
+from utils.time import *
 from utils.logger import logger
+from config import CRITICAL_STOCKS_US
 from core.interval import INTERVAL, MIN_INTERVAL, DAY_INTERVAL
 
 # =====================
@@ -27,7 +28,8 @@ class BaseStockSpider(ABC):
         self.max_retries = max_retries
         self.pause = pause
         self.db = QuantDB()
-        self.today = datetime.today().strftime("%Y-%m-%d")
+        self.today = today_str()
+        #datetime.today().strftime("%Y-%m-%d")
 
         # 统一的数据字段格式
         self.data_format = ["symbol", "interval", "date", "open", "high", "low", "close", "volume", "amount"]
@@ -91,7 +93,16 @@ class BaseStockSpider(ABC):
         dfs = []
         for interval in self.intervals:
             df = self.db.latest_stock_price(symbol, interval)
-            latest_date = "1970-01-01" if df.empty else df.at[0, "date"].split()[0]
+            if df.empty: 
+                latest_date = "1970-01-01" 
+            else:
+                if interval in MIN_INTERVAL:
+                    latest_date = df.at[0, "date"].split()[0]
+                else:
+                    latest_date = days_delta(df.at[0, "date"].split()[0], 1)
+            if latest_date >= self.today:
+                logger.info(f"{interval} price data is latest.")
+                continue
             df = self.fetch_stock_data(symbol, interval, latest_date, self.today)
             dfs.append(df)
         self.update_stock_price(pd.concat(dfs, ignore_index=True))
@@ -215,6 +226,8 @@ class YF_US_Spider(BaseStockSpider):
         df = pd.concat([nasdaq, others], ignore_index=True)
         df = df.drop_duplicates(subset='symbol', keep='first').reset_index(drop=True)
         df['exchange'], df["status"] = "us", 1
+        df['symbol'] = df['symbol'].astype(str)
+        df = df[~df['symbol'].str.contains(r'[.$]', regex=True, na=False)]
         super().refresh_stock_base(df)
         exchanges = [str(exchange) for exchange in df['exchange'].unique()]
         logger.info(f"Refresh stock base:{','.join(exchanges)}, total symbols:{len(df)}")
@@ -258,19 +271,21 @@ class YF_US_Spider(BaseStockSpider):
                     _do_download, 
                     symbols=" ".join([self._ticker_alias(b) for b in batch])
                 )
+                kv_list = []
                 for idx in range(len(batch)):
                     s = batch[idx]
                     try:
                         info = tickers.tickers[self._ticker_alias(s)].info
                     except Exception as e:
                         logger.error(f"Update {s} info error: {e}")
-                        break
+                        continue
 
                     keyvalues = {"symbol": s, "info": info, "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
                     for key, data_type in field_map.items():
-                        keyvalues[key] = info.get(data_type, 0) 
-                    self.db.update_stock_info(keyvalues)
-                    logger.info(f"✅Update {s} info: {i+idx+1}/{len(symbols)}")
+                        keyvalues[key] = info.get(data_type, 0)
+                    kv_list.append(keyvalues) 
+                row_count = self.db.update_stock_info_batch(kv_list)
+                logger.info(f"✅Update stock info: {i+batch_size}/{len(symbols)}")
             except Exception as e:
                 logger.error(f"Update info error: {e}")
 
@@ -512,6 +527,7 @@ if __name__ == "__main__":
     us.refresh_stock_base()
     df = us.query_stock_base(exchange="nasdaq")
     """
+    """
     ticker = "BTC-USD"
 
     #df = us.query_stock_price(ticker, "1min", 360)    
@@ -520,7 +536,7 @@ if __name__ == "__main__":
     print(df)
     df = us.query_stock_price(ticker, "daily")    
     print(df)
-    
+    """
 
 
 
