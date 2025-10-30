@@ -24,12 +24,13 @@ class Dragon:
         self.db.ddl(table_ddl)
  
     def run_growth(self, date:str, top_k:int=10, days:int=5):
-        if date:
-            df = self.db.query(f"SELECT 1 FROM dragon_growth WHERE date = '{date}'")
-            if df is None or len(df) < 1:
-                full_datetime = datetime.strptime(date, "%Y-%m-%d")
-                start_datetime = full_datetime - timedelta(days=days)
-                sql = f"""
+        full_datetime = datetime.strptime(date, "%Y-%m-%d")
+        start_datetime = full_datetime - timedelta(days=days)
+        sql = f"DELETE FROM dragon_growth WHERE date = '{date}'"
+        rows = self.db.update_sql(sql)
+        if rows > 0:
+            logger.info(f"Delete exists date: {rows}.")
+        sql = f"""
 WITH daily_with_prev AS (
     SELECT 
         symbol,
@@ -60,10 +61,10 @@ SELECT * FROM (
 )
 ORDER BY flag DESC, pct_change DESC;
 """
-                df = self.db.query(sql)
-                if len(df) > 0:
-                    self.db.update(df, "dragon_growth")
-                    logger.info(f"Dragon finished {df['date'].iloc[-1]}.")
+        df = self.db.query(sql)
+        if len(df) > 0:
+            self.db.update(df, "dragon_growth")
+            logger.info(f"Dragon finished {df['date'].iloc[-1]}.")
 
     def get_growth(self, date:str=None, flag:str=None) -> pd.DataFrame:
         sql = f"SELECT * FROM dragon_growth"

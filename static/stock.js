@@ -8,7 +8,7 @@ function initChart(){
     const container=document.getElementById('chart');
     chart = LightweightCharts.createChart(container,{width:container.clientWidth,height:600,layout:{background:{color:'#fff'},textColor:'#333'},grid:{vertLines:{color:'#eee'},horzLines:{color:'#eee'}},timeScale:{timeVisible:true}});
     candleSeries=chart.addCandlestickSeries({upColor:'#26a69a',downColor:'#ef5350',borderUpColor:'#26a69a',borderDownColor:'#ef5350',wickUpColor:'#26a69a',wickDownColor:'#ef5350'});
-    volumeSeries=chart.addHistogramSeries({color:'#26a69a',priceFormat:{type:'volume'},priceScaleId:'',scaleMargins:{top:0.8,bottom:0}});
+    volumeSeries=chart.addHistogramSeries({color:'#26a69a',priceFormat:{type:'volume'},priceScaleId:'left',scaleMargins:{top:0.8,bottom:0}});
     ema5Series=chart.addLineSeries({color:'#f39c12',lineWidth:2});
     ema20Series=chart.addLineSeries({color:'#2980b9',lineWidth:2});
     isChartInit=true;
@@ -101,7 +101,7 @@ async function searchStock(symbol=null){
     const klines=await response.json(); latestKlines=klines;
     const formatted=klines.map(k=>({time:k.date,open:k.open,high:k.high,low:k.low,close:k.close}));
     candleSeries.setData(formatted); chart.timeScale().fitContent();
-    const volData=klines.map(k=>({time:k.date,value:k.volume,color:k.close>=k.open?'#26a69a':'#ef5350'}));
+    const volData=klines.map(k=>({time:k.date,value:k.volume,color:k.close>=k.open?'#66bb6a':'#ff7043'}));
     volumeSeries.setData(volData);
     const ema5=calculateEMA(formatted,5); const ema20=calculateEMA(formatted,20);
     ema5Series.setData(formatted.map((d,i)=>({time:d.time,value:ema5[i]})));
@@ -139,23 +139,27 @@ async function searchStock(symbol=null){
         warningData = scoreData.map(d => ({ ...d, value: 0.0 }));
         goodData = scoreData.map(d => ({ ...d, value: 0.7 }));
         if(scoreData.length>0){priceLineSeries.setData(priceData);scoreLineSeries.setData(scoreData);scoreLineWarning.setData(warningData);scoreLineGood.setData(goodData);scoreChart.timeScale().fitContent();}
-    } else { tbody.innerHTML='<tr><td>暂无分析报告</td></tr>'; }
+    } else {priceLineSeries.setData([]);scoreLineSeries.setData([]);tbody.innerHTML='<tr><td>暂无分析报告</td></tr>'; }
 }
 
 function getParam(name) {
-  const searchParams = new URLSearchParams(window.location.search);
-  const hashParams = new URLSearchParams(window.location.hash.split("?")[1]);
-  return searchParams.get(name) || hashParams.get(name);
+    const searchParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.split("?")[1]);
+    return searchParams.get(name) || hashParams.get(name);
+}
+
+function initDateSelector(){
+    const end_date = new Date();
+    const start_date = new Date(end_date.getTime() - 60 * 24 * 60 * 60 * 1000);
+    document.getElementById("startDate").value = start_date.toISOString().slice(0, 10);
+    document.getElementById("endDate").value = end_date.toISOString().slice(0, 10);
 }
 
 // 初始化
 document.addEventListener('DOMContentLoaded',()=>{
     if(!isChartInit) initChart();
     if(!isScoreChartInit) initScoreChart();
-    const end_date = new Date();
-    const start_date = new Date(end_date.getTime() - 60 * 24 * 60 * 60 * 1000);
-    document.getElementById("startDate").value = start_date.toISOString().slice(0, 10);
-    document.getElementById("endDate").value = end_date.toISOString().slice(0, 10);
+    initDateSelector()
     loadStocks(getParam("symbol"));
 });
 window.onresize=()=>{

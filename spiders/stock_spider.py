@@ -227,11 +227,10 @@ class YF_US_Spider(BaseStockSpider):
         df = df.drop_duplicates(subset='symbol', keep='first').reset_index(drop=True)
         df['exchange'], df["status"] = "us", 1
         df['symbol'] = df['symbol'].astype(str)
-        df = df[~df['symbol'].str.contains(r'[.$]', regex=True, na=False)]
+        df = df[df['symbol'].str.match(r'^[A-Za-z0-9_]+$', na=False)]
         super().refresh_stock_base(df)
-        exchanges = [str(exchange) for exchange in df['exchange'].unique()]
-        logger.info(f"Refresh stock base:{','.join(exchanges)}, total symbols:{len(df)}")
-        
+        #exchanges = [str(exchange) for exchange in df['exchange'].unique()]
+        logger.info(f"Refresh stock base: US market, total symbols:{len(df)}")
         return True
 
     def query_stock_base(self) -> List[str]:
@@ -520,7 +519,7 @@ if __name__ == "__main__":
     
     
     us = YF_US_Spider()
-    #us.refresh_stock_base()
+    us.refresh_stock_base()
     #us.update_stock_info()
     #us.update_latest()
     """

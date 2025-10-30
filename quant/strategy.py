@@ -804,7 +804,7 @@ if __name__ == "__main__":
         "AMD",
         "INTC"
     ]
-    symbols, update = ["LI", "NIO"], True
+    symbols, update = ["AAPL", "LI", "NIO"], True
     update = False
     helper = StrategyHelper()
     #helper.analysis("XPEV", "2025-10-03", update=True)

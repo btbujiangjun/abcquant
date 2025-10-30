@@ -13,6 +13,7 @@ CRITICAL_STOCKS = [
     {"name":"TSLA", "exchange":"us"},
     {"name":"BABA", "exchange":"us"},
     {"name":"MU", "exchange":"us"},
+    {"name":"AAPL", "exchange":"us"},
     {"name":"TQQQ", "exchange":"us"},
     {"name":"SQQQ", "exchange":"us"},
     #{"name":"QQQ", "exchange":"us"},
@@ -80,6 +81,11 @@ OpenAI_CONFIG = {
 
 MODELSCOPE_CONFIG = {
     "model": "deepseek-ai/DeepSeek-V3.2-Exp",
+    "base_url": "https://api-inference.modelscope.cn/v1/",
+    "api_key": "ms-ea724408-36bc-4adc-92c7-f9742d2b147f",
+}
+MODELSCOPE_CONFIG = {
+    "model": "deepseek-ai/DeepSeek-R1-0528",
     "base_url": "https://api-inference.modelscope.cn/v1/",
     "api_key": "ms-ea724408-36bc-4adc-92c7-f9742d2b147f",
 }
