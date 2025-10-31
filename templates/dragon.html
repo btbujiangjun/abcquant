@@ -5,136 +5,16 @@
 <title>🐲龙虎榜🐯 - K线LLM分析系统</title>
 <link rel="stylesheet" href="/static/style.css">
 <style>
-  body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-    background-color: #fafafa;
-  }
-  .main-container {
-    display: flex;
-  }
-  .sidebar {
-    width: 220px;
-    background-color: #1e1e2f;
-    color: white;
-    padding: 20px;
-  }
-  .content {
-    flex: 1;
-    padding: 20px 40px;
-  }
-  .gradient-h1-title {
-    background: linear-gradient(90deg, #ff758c, #ff7eb3, #a6c1ee);
-    -webkit-background-clip: text;
-    color: transparent;
-    animation: gradientFlow 3s ease infinite;
-    background-size: 200% 200%;
-  }
-  @keyframes gradientFlow {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
-
-  .toolbar {
-    margin-bottom: 20px;
-    text-align: center;
-  }
-
-  .toolbar input[type="text"],
-  .toolbar input[type="date"] {
-    padding: 8px 12px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    margin-right: 8px;
-  }
-
-  .toolbar button {
-    padding: 8px 14px;
-    margin-left: 8px;
-    background-color: #0072ff;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-  }
-
-  .toolbar button:hover {
-    background-color: #005ae0;
-  }
-
   /* 双列布局 */
-  .section-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(48%, 1fr));
-    gap: 24px;
-  }
-
-  .section {
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-    padding: 10px;
-  }
-
-  .section h2 {
-    font-size: 20px;
-    text-align: center;
-    margin-bottom: 10px;
-    padding: 5px 10px;
-    border-radius: 8px;
-    background: linear-gradient(90deg, #a8edea, #fed6e3); /* 柔和渐变背景 */
-    color: #333; /* 文字颜色改为深灰，清晰可读 */
-    display: inline-block; /* 背景只包住文字，不影响布局 */
-  }
-
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-  }
-
-  .section-header h3 {
-    margin: 0;
-    font-size: 1.2em;
-  }
-
-  .date-selector {
-    font-size: 0.9em;
-    color: #666;
-  }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 10px;
-    font-size: 14px;
-  }
-
-  th, td {
-    padding: 8px 10px;
-    border: 1px solid #ddd;
-    text-align: center;
-  }
-
-  th {
-    background-color: #f8f8f8;
-  }
-
-  tbody tr:hover {
-    background-color: #f9f9f9;
-  }
-
-  .title-gradient {
-  background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
-  color: #2e2e2e;
-  text-align: center;
-  padding: 12px 0;
-  font-size: 1.8em;
-  border-radius: 10px;
-  font-weight: 700;
-}
+  .section-grid {display: grid;grid-template-columns: repeat(auto-fill, minmax(48%, 1fr));gap: 24px;}
+  .section {background: white;border-radius: 8px;box-shadow: 0 4px 10px rgba(0,0,0,0.08);padding: 10px;}
+  .section-header {display: flex;justify-content: space-between;align-items: center;margin-bottom: 8px;}
+  .section-header h3 {margin: 0;font-size: 1.2em;}
+  .date-selector {font-size: 0.9em;color: #666;}
+  table {width: 100%;border-collapse: collapse;margin-bottom: 10px;font-size: 14px;}
+  th, td {padding: 8px 10px;border: 1px solid #ddd;text-align: center;}
+  th {background-color: #f8f8f8;}
+  tbody tr:hover {background-color: #f9f9f9;}
 </style>
 </head>
 <body>

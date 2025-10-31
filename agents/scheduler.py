@@ -11,7 +11,8 @@ def us_spider_job(name:str="YF_US_Spider"):
     spider = YF_US_Spider()
     logger.info(f"⚠️  job {name} starting...")
     #spider.refresh_stock_base()
-    spider.update_latest()
+    #spider.update_latest()
+    spider.update_latest_batch()
  
 def strategy_job(name:str="LLMStrategy"):
     logger.info(f"⚠️  job {name} starting...")
@@ -34,7 +35,8 @@ class Scheduler:
         # 每天早上9点执行一次
         #self.scheduler.add_job(daily_job, 'cron', hour=hour, minute=minute)
         #self.scheduler.add_job(daily_job, 'interval', seconds=5, kwargs={'name':'Bob'})
-        
+
+        """        
         self.scheduler.add_job(
             hour_job, 
             'interval', 
@@ -42,7 +44,7 @@ class Scheduler:
             next_run_time=datetime.now(),
             kwargs={"name":"Hour job for critical stocks"}
         )
-
+        """
         self.scheduler.add_job(
             us_spider_job, 
             "date",

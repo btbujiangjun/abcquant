@@ -295,7 +295,7 @@ class QuantDB:
 
         return df.round(2)
 
-    def latest_stock_price(self, symbol: str, interval=str) -> pd.DataFrame:
+    def latest_stock_price(self, symbol:str, interval:str) -> pd.DataFrame:
         sql = f"SELECT date FROM stock_price WHERE symbol = '{symbol}' AND interval = '{interval}' ORDER BY date DESC LIMIT 1"
         return self.db.query(sql)
 

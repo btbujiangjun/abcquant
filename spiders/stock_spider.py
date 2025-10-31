@@ -29,7 +29,6 @@ class BaseStockSpider(ABC):
         self.pause = pause
         self.db = QuantDB()
         self.today = today_str()
-        #datetime.today().strftime("%Y-%m-%d")
 
         # 统一的数据字段格式
         self.data_format = ["symbol", "interval", "date", "open", "high", "low", "close", "volume", "amount"]
@@ -85,7 +84,7 @@ class BaseStockSpider(ABC):
             self.db.update_stock_price(df)
             return True
         except Exception as e:
-            logger.error(f"Update stock price error: {e}")
+            logger.error(f"🚫Update stock price error: {e}")
             return False
 
     def latest_stock_data(self, symbol:str):
@@ -136,6 +135,13 @@ class BaseStockSpider(ABC):
                     done_count += 1
                     logger.error(f"❌ [{done_count}/{total}] FAIL: {sym} ({e})")
 
+    def update_latest_batch(self, symbols:list[str]=None, period:int=3, batch_size:int=50):
+        end = today_str()
+        start = days_delta(end, -period)
+        symbols = symbols or self.query_stock_base()
+        logger.info(f"[{self.__class__.__name__}] {len(symbols)} stocks in queue...")
+        self.update_stock_data_batch(symbols, self.intervals, start, end, batch_size)  
+
     # ========= 抽象接口 ========= 
     @abstractmethod
     def query_stock_base(self) -> List[str]: ...
@@ -153,6 +159,14 @@ class BaseStockSpider(ABC):
             start: str, 
             end: str) -> pd.DataFrame: ...
 
+    
+    @abstractmethod
+    def update_stock_data_batch(self, 
+            symbols: list[str],
+            intervals: list[str], 
+            start:str=days_delta(today_str(), -3),
+            end:str=today_str(),
+            batch_size:int=50): ...
 
 # =====================
 # 美股爬虫（Yahoo Finance）
@@ -171,6 +185,21 @@ class YF_US_Spider(BaseStockSpider):
             "daily": {"code":"1d","valid": 729}, 
             "weekly": {"code":"1wk","valid": 729},
             "monthly": {"code":"1mo","valid": 729},
+        }
+        self.stock_info_field_map = {
+            "status": "marketState",
+            "market_cap": "marketCap",
+            "current_price": "currentPrice",
+            "fifty_two_week_high": "fiftyTwoWeekHigh",
+            "fifty_two_week_low": "fiftyTwoWeekLow",
+            "all_time_high": "allTimeHigh",
+            "all_time_low": "allTimeLow",
+            "short_ratio": "shortRatio",
+            "country": "country",
+            "industry": "industry",
+            "sector": "sector",
+            "quote_type": "quoteType",
+            "recommendation": "recommendationKey",
         }
         self.TICKER_ALIAS = {
             "IXIC": "^IXIC",   # 纳指
@@ -229,7 +258,6 @@ class YF_US_Spider(BaseStockSpider):
         df['symbol'] = df['symbol'].astype(str)
         df = df[df['symbol'].str.match(r'^[A-Za-z0-9_]+$', na=False)]
         super().refresh_stock_base(df)
-        #exchanges = [str(exchange) for exchange in df['exchange'].unique()]
         logger.info(f"Refresh stock base: US market, total symbols:{len(df)}")
         return True
 
@@ -243,21 +271,6 @@ class YF_US_Spider(BaseStockSpider):
         self.fetch_stock_info(symbols, batch_size=batch_size)
 
     def fetch_stock_info(self, symbols:list[str], batch_size:int=50):
-        field_map = {
-            "status": "marketState",
-            "market_cap": "marketCap",
-            "current_price": "currentPrice",
-            "fifty_two_week_high": "fiftyTwoWeekHigh",
-            "fifty_two_week_low": "fiftyTwoWeekLow",
-            "all_time_high": "allTimeHigh",
-            "all_time_low": "allTimeLow",
-            "short_ratio": "shortRatio",
-            "country": "country",
-            "industry": "industry",
-            "sector": "sector",
-            "quote_type": "quoteType",
-            "recommendation": "recommendationKey",
-        }
 
         def _do_download(symbols=symbols):
             with self._lock:
@@ -271,22 +284,23 @@ class YF_US_Spider(BaseStockSpider):
                     symbols=" ".join([self._ticker_alias(b) for b in batch])
                 )
                 kv_list = []
+                update_time = today_str(get_format("YYMMDDHHMMSS"))
                 for idx in range(len(batch)):
                     s = batch[idx]
                     try:
                         info = tickers.tickers[self._ticker_alias(s)].info
                     except Exception as e:
-                        logger.error(f"Update {s} info error: {e}")
+                        logger.error(f"🚫Update {s} info error: {e}")
                         continue
 
-                    keyvalues = {"symbol": s, "info": info, "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
-                    for key, data_type in field_map.items():
+                    keyvalues = {"symbol": s, "info": info, "update_time": update_time}
+                    for key, data_type in self.stock_info_field_map.items():
                         keyvalues[key] = info.get(data_type, 0)
                     kv_list.append(keyvalues) 
                 row_count = self.db.update_stock_info_batch(kv_list)
                 logger.info(f"✅Update stock info: {i+batch_size}/{len(symbols)}")
             except Exception as e:
-                logger.error(f"Update info error: {e}")
+                logger.error(f"🚫Update info error: {e}")
 
     def _period_adjust(self, interval, start, end):
         if interval in self.day_intervals:
@@ -344,6 +358,88 @@ class YF_US_Spider(BaseStockSpider):
         else:
             logger.error(f"Not found data: {symbol} / {interval}, from {start} to {end}")
         return df
+
+    def update_stock_data_batch(self,
+            symbols: list[str],
+            intervals: list[str],
+            start:str=days_delta(today_str(), -3),
+            end:str=today_str(),
+            batch_size:int=50):
+        date_format = get_format("YYMMDDHHMMSS") 
+
+        def _do_download(symbols=symbols):
+            with self._lock:
+                return yf.Tickers(symbols)
+
+        def _get_tickers_info(batch):
+            try:
+                return self._retry(_do_download, symbols=" ".join([self._ticker_alias(b) for b in batch]))
+            except Exception as e:
+                logger.error(f"🚫Error fetching tickers info: {e}")
+                raise
+
+        def _get_info_kv_list(batch, tickers):
+            kv_list = []
+            for s in batch:
+                info = tickers.tickers.get(self._ticker_alias(s), {}).info
+                if not info:
+                    logger.error(f"🚫Error: No info found for {s}")
+                    continue
+                kv_entry = {
+                    "symbol": s,
+                    "info": info,
+                    "update_time": datetime.now().strftime(date_format),
+                    **{key: info.get(data_type, 0) for key, data_type in self.stock_info_field_map.items()}
+                }
+                kv_list.append(kv_entry)
+            return kv_list
+
+        def _get_stock_data(tickers, batch):
+            dfs = []
+            for interval in intervals:
+                for symbol in batch:
+                    df = _get_interval_data(tickers, symbol, interval)
+                    if df.empty:
+                        continue
+                    df["symbol"], df["interval"], df["amount"] = symbol, interval, df["Close"] * df["Volume"]
+                    df = _process_data(df, interval)
+                    logger.info(f"Get price: {symbol}/{interval}/[{df['date'].iat[-1]}] {len(df)} rows")
+                    dfs.append(df)
+            return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+
+        def _get_interval_data(tickers, symbol, interval):
+            try:
+                return tickers.tickers[self._ticker_alias(symbol)].history(
+                    start=start,
+                    end=end,
+                    interval=self.yf_interval_map[interval]["code"]
+                )
+            except Exception as e:
+                logger.error(f"🚫Error fetching data for {symbol} at interval {interval}: {e}")
+                return pd.DataFrame()
+    
+        def _process_data(df, interval):
+            df = df.reset_index()
+            date_field = "Datetime" if interval in self.min_intervals else "Date"
+            df["date"] = df[date_field].dt.strftime(date_format)
+            df = df[["symbol", "interval", "date", "Open", "High", "Low", "Close", "Volume", "amount"]]
+            df.columns = self.data_format
+            return df
+
+        for i in range(0, len(symbols), batch_size):
+            batch = symbols[i:i + batch_size]
+            try:
+                tickers = _get_tickers_info(batch)
+                kv_list = _get_info_kv_list(batch, tickers)
+                df = _get_stock_data(tickers, batch)
+                if kv_list:
+                    self.db.update_stock_info_batch(kv_list)
+                    logger.info(f"✅Update stock info: {i + batch_size}/{len(symbols)}")
+                if not df.empty:
+                    self.update_stock_price(df)
+                    logger.info(f"✅Update price: {df['date'].iat[-1]} {len(df)} rows") 
+            except Exception as e:
+                logger.error(f"🚫Update info error: {e}")
 
 class AK_A_Spider(BaseStockSpider):
 

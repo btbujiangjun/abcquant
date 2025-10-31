@@ -1,6 +1,7 @@
 import pandas as pd
 from datetime import datetime, timedelta
 from db import DB
+from utils.time import *
 from utils.logger import logger
 
 class Dragon:
@@ -88,10 +89,9 @@ ORDER BY flag DESC, pct_change DESC;
 
 if __name__ == '__main__':
     dragon = Dragon()
-    dates = ["2025-10-28"]
-    for date in dates:
-        dragon.run_growth(date)
-        df = dragon.get_growth(flag="TopGainers", date=date)   
-        print(df.head)
+    date = days_delta(today_str(), -1)
+    dragon.run_growth(date)
+    df = dragon.get_growth(flag="TopGainers", date=date)   
+    print(df.head)
 
 
