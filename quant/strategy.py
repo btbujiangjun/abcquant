@@ -161,7 +161,7 @@ class Strategy:
         try:
             data = json.loads(stock_info)
             #用周期内最后一天收盘价格替换实时价格数据，避免数据错乱
-            if not is_today(date) and not is_yesterday(date):
+            if not is_today(date) and not is_yesterday(date) or "currentPrice" not in data:
                 data["currentPrice"] = df_day['close'].iat[-1]
                 stock_info = json.dumps(data, ensure_ascii=False)
         except Exception as e:
@@ -250,7 +250,7 @@ class ThreeFilterStrategy(Strategy):
         today, yesterday = analysis["today"], analysis["yesterday"]
         this_week, last_week = analysis["this_week"], analysis["last_week"]
         df_day, df_week = analysis["df_day"], analysis["df_week"]
-       
+        logger.info(json.loads(analysis["stock_info"])) 
         return f"""
 你是一名专业的量化分析师，擅长通过技术形态识别股价趋势。  
 请严格根据以下数据进行分析：
@@ -634,7 +634,8 @@ if __name__ == "__main__":
     symbols, update = ["YINN", "MU"], True
     update = False
     helper = StrategyHelper()
-    #helper.analysis("XPEV", "2025-10-03", update=True)
+    helper.analysis("MSTX", "2025-10-30", update=False)
+    """
     for symbol in symbols:
         helper.update(symbol, 200, update=update)
-
+    """

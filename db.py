@@ -339,6 +339,7 @@ if __name__ == '__main__':
     #db.ddl(sql)
     sql = "select * from stock_price where symbol='XPEV' and interval = 'daily' ORDER BY date DESC LIMIT 10"
 #    sql = "select * from analysis_report where symbol='XPEV' ORDER BY date ASC LIMIT 5"
+    sql = "select * from stock_info where symbol='TQQQ' LIMIT 5"
     df = db.query(sql)
     print(df.head)
 

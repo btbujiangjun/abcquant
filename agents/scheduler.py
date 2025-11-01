@@ -36,7 +36,7 @@ class Scheduler:
         #self.scheduler.add_job(daily_job, 'cron', hour=hour, minute=minute)
         #self.scheduler.add_job(daily_job, 'interval', seconds=5, kwargs={'name':'Bob'})
 
-        """        
+
         self.scheduler.add_job(
             hour_job, 
             'interval', 
@@ -44,7 +44,7 @@ class Scheduler:
             next_run_time=datetime.now(),
             kwargs={"name":"Hour job for critical stocks"}
         )
-        """
+
         self.scheduler.add_job(
             us_spider_job, 
             "date",

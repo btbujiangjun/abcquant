@@ -439,7 +439,15 @@ class YF_US_Spider(BaseStockSpider):
                     self.update_stock_price(df)
                     logger.info(f"✅Update price: {df['date'].iat[-1]} {len(df)} rows") 
             except Exception as e:
-                logger.error(f"🚫Update info error: {e}")
+                err_msg = str(e)
+                if "Too Many Requests" in err_msg or "429" in err_msg:
+                    logger.warning(f"⚠️ Hit rate limit! Sleeping 10s...")
+                    time.sleep(10)
+                elif "Connection" in err_msg or "timed out" in err_msg:
+                    logger.warning(f"⚠️ Connection error! Sleeping 5s ...")
+                    time.sleep(5)
+                else:
+                    logger.error(f"🚫Unexpected error: {e}")
 
 class AK_A_Spider(BaseStockSpider):
 
