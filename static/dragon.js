@@ -20,8 +20,8 @@ async function loadDragon() {
   const data = await resp.json();
   renderGrowthTop10("TopGainers10Body", data.Top_Gainers);
   renderGrowthTop10("TopLosers10Body", data.Top_Losers);
-  renderTop10("buyTop10Body", data.buy_top10);
-  renderTop10("sellTop10Body", data.sell_top10);
+  renderTop10("Top_Report10Body", data.Top_Report);
+  renderTop10("Bottom_Report10Body", data.Bottom_Report);
   renderTop10("netBuyTop10Body", data.netbuy_top10);
   renderTop10("activeTop10Body", data.active_top10);
 
@@ -61,9 +61,9 @@ function renderTop10(tableBodyId, items) {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${index + 1}</td>
-      <td>${item.symbol}</td>
-      <td>${item.name}</td>
-      <td>${item.value}</td>
+      <td><a href="/?symbol=${item.symbol}">${item.symbol}</a></td>
+      <td>${item.prev_score}</td>
+      <td><b>${item.score}</b></td>
     `;
     tbody.appendChild(tr);
   });

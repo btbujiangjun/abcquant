@@ -2,8 +2,10 @@
 from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 
+from utils.time import *
 from utils.logger import logger
 from config import CRITICAL_STOCKS_US 
+from analysis.dragon import Dragon
 from quant.strategy import StrategyHelper
 from spiders.stock_spider import BaseStockSpider, YF_US_Spider
 
@@ -19,6 +21,9 @@ def strategy_job(name:str="LLMStrategy"):
     strategy = StrategyHelper()
     strategy.update_latest()
 
+    dragon = Dragon()
+    dragon.run_growth(days_delta(today_str(), -1))
+
 def hour_job(name:str="hour job for ctritical stock"):
     logger.info(f"⚠️  {name} 执行中... ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})")
     spider = YF_US_Spider()
@@ -29,6 +34,7 @@ def hour_job(name:str="hour job for ctritical stock"):
 class Scheduler:
     def __init__(self):
         self.scheduler = BackgroundScheduler()
+        self.dragon = Dragon()
 
     def start(self, hour:int=9, minute:int=0):
         """启动调度器"""

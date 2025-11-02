@@ -35,11 +35,13 @@ async def dragon_page(request: Request):
 async def get_dragon_data(date: str = None):
     rise_df = dragon.get_growth(flag="TopGainers", date=date)
     fall_df = dragon.get_growth(flag="TopLosers", date=date)
+    top_report_df = dragon.get_report(flag="TopReports", date=date)
+    bottom_report_df = dragon.get_report(flag="BottomReports", date=date)
     return {
         "Top_Gainers": [{"date": row["date"], "symbol": row["symbol"], "prev_close": row["prev_close"], "latest_close": row["latest_close"], "pct": row["pct_change"]} for _, row in rise_df.iterrows()],
         "Top_Losers": [{"date": row["date"], "symbol": row["symbol"], "prev_close": row["prev_close"], "latest_close": row["latest_close"], "pct": row["pct_change"]} for _, row in fall_df.iterrows()],
-        "sell_top10": [{"symbol": "000858", "name": "五粮液", "value": 9200}],
-        "netbuy_top10": [{"symbol": "300750", "name": "宁德时代", "value": 4800}],
+        "Top_Report": [{"date": row["date"], "symbol": row["symbol"], "prev_score": row["prev_score"], "score": row["score"]} for _, row in top_report_df.iterrows()],
+        "Bottom_Report": [{"date": row["date"], "symbol": row["symbol"], "prev_score": row["prev_score"], "score": row["score"]} for _, row in bottom_report_df.iterrows()],
         "active_top10": [{"symbol": "600036", "name": "招商银行", "value": 98}],
     }
 

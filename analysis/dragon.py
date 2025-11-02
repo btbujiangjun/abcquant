@@ -9,7 +9,7 @@ class Dragon:
         self.db = DB(db_path)
         
         table_ddl = [
-          """
+            """
             CREATE TABLE IF NOT EXISTS dragon_growth (
                 symbol TEXT,
                 latest_date TEXT,
@@ -18,6 +18,16 @@ class Dragon:
                 prev_close DOUBLE,
                 latest_close DOUBLE,
                 pct_change DOUBLE,
+                UNIQUE(date, flag, symbol)
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS dragon_report (
+                symbol TEXT,
+                date TEXT,
+                score DOUBLE,
+                prev_score DOUBLE,
+                flag TEXT,
                 UNIQUE(date, flag, symbol)
             )
             """,
@@ -30,7 +40,7 @@ class Dragon:
         sql = f"DELETE FROM dragon_growth WHERE date = '{date}'"
         rows = self.db.update_sql(sql)
         if rows > 0:
-            logger.info(f"Delete exists date: {rows}.")
+            logger.info(f"Delete exists growth data on {date}: {rows}.")
         sql = f"""
 WITH daily_with_prev AS (
     SELECT 
@@ -39,7 +49,7 @@ WITH daily_with_prev AS (
         close,
         LAG(close) OVER (PARTITION BY symbol ORDER BY date) AS prev_close
     FROM stock_price
-    WHERE interval = 'daily' AND date >= '{start_datetime}' AND date <= '{full_datetime}'
+    WHERE interval = 'daily' AND date >= '{start_datetime}' AND date <= '{full_datetime}' AND close > 0.0
 ),
 calc AS (
     SELECT
@@ -79,19 +89,76 @@ ORDER BY flag DESC, pct_change DESC;
         condition = "" if len(conditions) == 0 else " AND ".join(conditions)
         sql = sql if condition == "" else sql + " WHERE " + condition
         sql += f" ORDER BY date DESC"
-        if flag is not None:
+        if flag:
             sql += f", pct_change {'DESC' if flag == 'TopGainers' else 'ASC'}"  
         df = self.db.query(sql) 
         df['pct_change'] = df['pct_change'].apply(lambda x: f"{x:.2f}%")
         return df
 
+    def run_report(self, date:str, top_k:int=10, days:int=5):
+        full_datetime = datetime.strptime(date, "%Y-%m-%d")
+        start_datetime = full_datetime - timedelta(days=days)
+        sql = f"DELETE FROM dragon_report WHERE date = '{date}'"
+        rows = self.db.update_sql(sql)
+        if rows > 0:
+            logger.info(f"Delete exists report {date}: {rows}.")
+        sql = f"""
+WITH daily_with_prev AS (
+    SELECT 
+        symbol,
+        SUBSTR(date, 1, 10) AS date,
+        three_filters_score as score,
+        LAG(three_filters_score) OVER (PARTITION BY symbol ORDER BY date) AS prev_score
+    FROM analysis_report
+    WHERE date >= '{start_datetime}' AND date <= '{date}'
+)
+SELECT * FROM (
+    SELECT 'TopReports' AS flag, * FROM (
+        SELECT * FROM daily_with_prev WHERE date = '{date}' ORDER BY score DESC LIMIT {top_k}
+    )
+    UNION ALL
+    SELECT 'BottomReports' AS flag, * FROM (
+        SELECT * FROM daily_with_prev WHERE date = '{date}' ORDER BY score ASC LIMIT {top_k}
+    )
+)
+"""
+        logger.info(sql)
+        df = self.db.query(sql)
+        if len(df) > 0:
+            self.db.update(df, "dragon_report")
+            logger.info(f"Dragon report finished {df['date'].iloc[-1]}.")
+
+    def get_report(self, date:str=None, flag:str=None) -> pd.DataFrame:
+        sql = f"SELECT * FROM dragon_report"
+        conditions = []
+        if date:
+            conditions.append(f" date = '{date}'")
+        if flag:
+            conditions.append(f" flag ='{flag}'")
+        condition = "" if len(conditions) == 0 else " AND ".join(conditions) 
+        sql = sql if condition == "" else sql + " WHERE " + condition
+        sql += f" ORDER BY date DESC"
+        if flag:
+            sql += f", score {'DESC' if flag == 'TopReports' else 'ASC'}"
+        return self.db.query(sql)
 
 
 if __name__ == '__main__':
     dragon = Dragon()
-    date = days_delta(today_str(), -1)
-    dragon.run_growth(date)
+    date = "2025-10-31"
+    #yesterday = days_delta(today_str(), -1)
+    """
+    dragon.run_growth(date or days_delta(today_str(), -1))
     df = dragon.get_growth(flag="TopGainers", date=date)   
-    print(df.head)
+    print(df)
+    df = dragon.get_growth(date=date)   
+    print(df)
+    """
 
+    dragon.run_report(date or days_delta(today_str(), -1))
+    df = dragon.get_report(flag="TopReports", date=date)
+    print(df)
+
+    df = dragon.get_report(flag="BottomReports", date=date)
+    print(df)
 
