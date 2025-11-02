@@ -30,6 +30,8 @@ def hour_job(name:str="hour job for ctritical stock"):
     spider.update_latest(symbols=CRITICAL_STOCKS_US)
     strategy = StrategyHelper()
     strategy.update_latest(symbols=CRITICAL_STOCKS_US, days=5, update=False)
+    dragon = Dragon()
+    dragon.run_report(days_delta(today_str(), -1))
 
 class Scheduler:
     def __init__(self):
