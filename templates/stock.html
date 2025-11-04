@@ -1,22 +1,7 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>💹股票分析 - LLM K线系统</title>
-<link rel="stylesheet" href="/static/style.css">
+{% extends "base.html" %}
+{% block content %}
 <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-</head>
-<body>
-<div class="main-container">
-  <div class="sidebar" id="sidebar">
-    <h2>功能导航</h2>
-    <button class="tab-btn active" onclick="location.href='/'">股票分析💹</button>
-    <button class="tab-btn" onclick="location.href='/dragon'">🐲龙🐯榜🔥</button>
-    <button class="tab-btn" onclick="location.href='other2.html'">其他功能2</button>
-    <button class="toggle-btn" id="toggleSidebar">⏴</button>
-  </div>
-  <div class="content" id="content">
     <h1>🚀<span class="gradient-h1-title">基于LLM的股票K线分析系统</span>💰</h1>
     <div class="toolbar">
       <select id="stockSelector"></select>
@@ -46,9 +31,5 @@
       </thead>
       <tbody id="customTableBody"><tr><td>请选择股票加载分析报告</td></tr></tbody>
     </table>
-  </div>
-</div>
 <script src="/static/stock.js"></script>
-</body>
-</html>
-
+{% endblock %}

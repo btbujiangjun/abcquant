@@ -631,11 +631,12 @@ if __name__ == "__main__":
         "AMD",
         "INTC"
     ]
-    symbols, update = ["YINN", "MU"], True
+    symbols, update = ["MU", "MSTX", "MSTZ"], True
     update = False
     helper = StrategyHelper()
-    helper.analysis("MSTX", "2025-10-30", update=False)
-    """
+    #helper.analysis("MSTX", "2025-10-30", update=False)
+    
     for symbol in symbols:
         helper.update(symbol, 200, update=update)
-    """
+    
+

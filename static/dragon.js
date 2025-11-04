@@ -63,7 +63,7 @@ function renderTop10(tableBodyId, items) {
       <td>${index + 1}</td>
       <td><a href="/?symbol=${item.symbol}">${item.symbol}</a></td>
       <td>${item.prev_score}</td>
-      <td><b>${item.score}</b></td>
+      <td style="color:${item.score>item.prev_score ? '#27ae60':'#c0392b'}">${item.score}</td>
     `;
     tbody.appendChild(tr);
   });

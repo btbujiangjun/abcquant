@@ -25,11 +25,15 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 @app.get("/", response_class=HTMLResponse)
 def get_index(request: Request):
     """返回前端页面"""
-    return templates.TemplateResponse("stock.html", {"request": request})
+    return templates.TemplateResponse("stock.html", {"request": request, "page":"stock", "title":"💹股票分析 - LLM K线系"})
 
 @app.get("/dragon")
 async def dragon_page(request: Request):
-    return templates.TemplateResponse("dragon.html", {"request": request})
+    return templates.TemplateResponse("dragon.html", {"request": request, "page":"dragon", "title":"🐲龙虎榜🐯"})
+
+@app.get("/report")
+async def report_page(request: Request):
+    return templates.TemplateResponse("report.html", {"request": request, "page":"report", "title":"📊分析报告"})
 
 @app.get("/api/dragon")
 async def get_dragon_data(date: str = None):

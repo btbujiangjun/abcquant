@@ -146,7 +146,7 @@ SELECT * FROM (
 if __name__ == '__main__':
     dragon = Dragon()
     date = "2025-10-31"
-    #yesterday = days_delta(today_str(), -1)
+    date = days_delta(today_str(), -1)
     """
     dragon.run_growth(date or days_delta(today_str(), -1))
     df = dragon.get_growth(flag="TopGainers", date=date)   
@@ -155,6 +155,8 @@ if __name__ == '__main__':
     print(df)
     """
 
+    dragon.run_growth(date or days_delta(today_str(), -1))
+    
     dragon.run_report(date or days_delta(today_str(), -1))
     df = dragon.get_report(flag="TopReports", date=date)
     print(df)
