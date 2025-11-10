@@ -183,8 +183,6 @@ class Strategy:
         # 6. 构造 prompt
         prompt = self.build_prompt(analysis)
 
-        logger.info(prompt)
-
         # 7. 调用 LLM
         report = self.llm.chat(prompt)
        
@@ -250,7 +248,6 @@ class ThreeFilterStrategy(Strategy):
         today, yesterday = analysis["today"], analysis["yesterday"]
         this_week, last_week = analysis["this_week"], analysis["last_week"]
         df_day, df_week = analysis["df_day"], analysis["df_week"]
-        logger.info(json.loads(analysis["stock_info"])) 
         return f"""
 你是一名专业的量化分析师，擅长通过技术形态识别股价趋势。  
 请严格根据以下数据进行分析：
@@ -631,7 +628,7 @@ if __name__ == "__main__":
         "AMD",
         "INTC"
     ]
-    symbols, update = ["MU", "MSTX", "MSTZ"], True
+    symbols, update = CRITICAL_STOCKS_US, True
     update = False
     helper = StrategyHelper()
     #helper.analysis("MSTX", "2025-10-30", update=False)

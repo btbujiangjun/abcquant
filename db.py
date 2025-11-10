@@ -213,10 +213,15 @@ class QuantDB:
         ]
         self.db.ddl(table_ddl)
 
-    def refresh_stock_base(self, df):
+    def refresh_stock_base(self, df, exchange:str=None):
         if isinstance(df, pd.DataFrame) and not df.empty:
             table_name = "stock_base"
             delete_sql = f"DELETE FROM {table_name}"
+            if exchange:
+                delete_sql += f" WHERE exchange='{exchange}'"
+            rows = self.db.update_sql(delete_sql)
+            if rows > 0:
+                logger.info(f"Delete {exchange} stock base: {rows} rows.")
             self.db.update(df, table_name)
         else:
             logger.error("Refresh stock base error: data is not data frame.")
@@ -228,7 +233,7 @@ class QuantDB:
     def query_stock_base(self, exchange: str=None, top_k: int=None):
         sql = "SELECT a.symbol, a.name, b.market_cap FROM stock_base a left join stock_info b on a.symbol = b.symbol "
         if exchange is not None:
-            sql += f" WHERE a.status != '0' AND a.exchange = '{exchange}'"
+            sql += f" WHERE a.symbol IS NOT NULL AND a.status != '0' AND a.exchange = '{exchange}'"
         sql += " ORDER BY b.market_cap DESC"
         if top_k is not None:
             sql += f" Limit {top_k}" 
@@ -340,8 +345,13 @@ if __name__ == '__main__':
     sql = "select * from stock_price where symbol='XPEV' and interval = 'daily' ORDER BY date DESC LIMIT 10"
 #    sql = "select * from analysis_report where symbol='XPEV' ORDER BY date ASC LIMIT 5"
     sql = "select * from stock_info where symbol='TQQQ' LIMIT 5"
+    sql = "select count(*) from stock_base"
     df = db.query(sql)
     print(df.head)
+
+    #db = QuantDB()
+    #df = db.query_stock_base(exchange="us")
+    #print(df)
 
     """
     # 显示所有行

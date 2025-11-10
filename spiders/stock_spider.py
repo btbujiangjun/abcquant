@@ -57,12 +57,12 @@ class BaseStockSpider(ABC):
         df = self.db.query_stock_base(exchange)
         return [] if df is None else df['symbol'].dropna().tolist()
 
-    def refresh_stock_base(self, df: pd.DataFrame) -> bool:
+    def refresh_stock_base(self, df: pd.DataFrame, exchange:str=None) -> bool:
         if not isinstance(df, pd.DataFrame) or df.empty:
             logger.error("Refresh stock base error: DataFrame invalid.")
             return False
         try:
-            self.db.refresh_stock_base(df)
+            self.db.refresh_stock_base(df, exchange)
             return True
         except Exception as e:
             logger.error(f"Update stock base error: {e}")
@@ -80,12 +80,12 @@ class BaseStockSpider(ABC):
         if not isinstance(df, pd.DataFrame) or df.empty:
             logger.warning("Update stock price skipped: no data.")
             return False
-        try:
-            self.db.update_stock_price(df)
-            return True
-        except Exception as e:
-            logger.error(f"🚫Update stock price error: {e}")
-            return False
+        #try:
+        self.db.update_stock_price(df)
+        #    return True
+        #except Exception as e:
+        #    logger.error(f"🚫Update stock price error: {e}")
+        #    return False
 
     def latest_stock_data(self, symbol:str):
         """获取某个股票所有 interval 的最新数据"""
@@ -135,7 +135,7 @@ class BaseStockSpider(ABC):
                     done_count += 1
                     logger.error(f"❌ [{done_count}/{total}] FAIL: {sym} ({e})")
 
-    def update_latest_batch(self, symbols:list[str]=None, period:int=3, batch_size:int=50):
+    def update_latest_batch(self, symbols:list[str]=None, period:int=3, batch_size:int=1000):
         end = today_str()
         start = days_delta(end, -period)
         symbols = symbols or self.query_stock_base()
@@ -254,23 +254,25 @@ class YF_US_Spider(BaseStockSpider):
 
         df = pd.concat([nasdaq, others], ignore_index=True)
         df = df.drop_duplicates(subset='symbol', keep='first').reset_index(drop=True)
-        df['exchange'], df["status"] = "us", 1
+        exchange = "us"
+        df['exchange'], df["status"] = exchange, 1
         df['symbol'] = df['symbol'].astype(str)
-        df = df[df['symbol'].str.match(r'^[A-Za-z0-9_]+$', na=False)]
-        super().refresh_stock_base(df)
+        #df = df[df['symbol'].str.match(r'^[A-Za-z0-9_]+$', na=False)]
+        df = df[~df['symbol'].str.contains(r'[.$]', regex=True, na=False)]
+        super().refresh_stock_base(df, exchange)
         logger.info(f"Refresh stock base: US market, total symbols:{len(df)}")
-        return True
+        return df
 
     def query_stock_base(self) -> List[str]:
         symbols = self.extend_symbols.copy()
         symbols.extend(self._local_stock_base(exchange="us"))        
         return symbols
 
-    def update_stock_info(self, symbols:list[str]=None, batch_size: int=50):
+    def update_stock_info(self, symbols:list[str]=None, batch_size: int=500):
         symbols = symbols or self.query_stock_base()
         self.fetch_stock_info(symbols, batch_size=batch_size)
 
-    def fetch_stock_info(self, symbols:list[str], batch_size:int=50):
+    def fetch_stock_info(self, symbols:list[str], batch_size:int=500):
 
         def _do_download(symbols=symbols):
             with self._lock:
@@ -364,7 +366,7 @@ class YF_US_Spider(BaseStockSpider):
             intervals: list[str],
             start:str=days_delta(today_str(), -3),
             end:str=today_str(),
-            batch_size:int=50):
+            batch_size:int=1000):
         date_format = get_format("YYMMDDHHMMSS") 
 
         def _do_download(symbols=symbols):
@@ -471,7 +473,7 @@ class AK_A_Spider(BaseStockSpider):
         exchange = "cn"
         df["exchange"], df["status"] = exchange, 1
  
-        super().refresh_stock_base(df) 
+        super().refresh_stock_base(df, exchange) 
         logger.info(f"Refresh {exchange} stock base, total symbols:{len(df)}")
 
         return True
@@ -546,7 +548,7 @@ class AK_HK_Spider(BaseStockSpider):
         df = df[['代码','中文名称']]
         df.columns = ['symbol','name']
         df["exchange"], df["status"] = exchange, 1
-        super().refresh_stock_base(df) 
+        super().refresh_stock_base(df, exchange) 
         logger.info(f"Refresh {exchange} stock base, total symbols:{len(df)}")
 
         return True
@@ -620,10 +622,15 @@ if __name__ == "__main__":
     #a_spider.update_latest()
     #hk_spider.update_latest()
 
-    
+    pd.set_option('display.max_columns', None)
+    pd.set_option('display.max_colwidth', None)
+    pd.set_option('display.max_rows', None)    
     
     us = YF_US_Spider()
-    us.refresh_stock_base()
+    df = us.refresh_stock_base()
+    df.to_csv("data.csv", index=False, encoding="utf-8")
+    #print(df)
+
     #us.update_stock_info()
     #us.update_latest()
     """

@@ -82,13 +82,15 @@ OpenAI_CONFIG = {
 MODELSCOPE_CONFIG = {
     "model": "deepseek-ai/DeepSeek-V3.2-Exp",
     "base_url": "https://api-inference.modelscope.cn/v1/",
-    "api_key": "ms-ea724408-36bc-4adc-92c7-f9742d2b147f",
+    "api_key": "ms-ac30f49d-421c-4d75-b0ff-dc51e55af7e1",
 }
+
 MODELSCOPE_CONFIG = {
     "model": "deepseek-ai/DeepSeek-R1-0528",
     "base_url": "https://api-inference.modelscope.cn/v1/",
-    "api_key": "ms-ea724408-36bc-4adc-92c7-f9742d2b147f",
+    "api_key": "ms-ac30f49d-421c-4d75-b0ff-dc51e55af7e1",
 }
+
 OLLAMA_CONFIG = {
     #"model": "gpt-oss:20b",
     #"model": "gemma3:27b",

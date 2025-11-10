@@ -46,7 +46,6 @@ async def get_dragon_data(date: str = None):
         "Top_Losers": [{"date": row["date"], "symbol": row["symbol"], "prev_close": row["prev_close"], "latest_close": row["latest_close"], "pct": row["pct_change"]} for _, row in fall_df.iterrows()],
         "Top_Report": [{"date": row["date"], "symbol": row["symbol"], "prev_score": row["prev_score"], "score": row["score"]} for _, row in top_report_df.iterrows()],
         "Bottom_Report": [{"date": row["date"], "symbol": row["symbol"], "prev_score": row["prev_score"], "score": row["score"]} for _, row in bottom_report_df.iterrows()],
-        "active_top10": [{"symbol": "600036", "name": "招商银行", "value": 98}],
     }
 
 

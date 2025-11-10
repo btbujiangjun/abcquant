@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     loadDragon();
 });
 function updateDateLabels(date) {
-  ["Gainers","Losers","Buy","Sell","NetBuy","Active"].forEach(id=>{
+  ["Gainers","Losers","TopReport","BottomRepot",].forEach(id=>{
     document.getElementById("date"+id).textContent = date;
   });
 }
@@ -22,9 +22,6 @@ async function loadDragon() {
   renderGrowthTop10("TopLosers10Body", data.Top_Losers);
   renderTop10("Top_Report10Body", data.Top_Report);
   renderTop10("Bottom_Report10Body", data.Bottom_Report);
-  renderTop10("netBuyTop10Body", data.netbuy_top10);
-  renderTop10("activeTop10Body", data.active_top10);
-
   updateDateLabels(date)
 }
 

@@ -29,9 +29,10 @@ def strategy_job(name:str="LLMStrategy"):
 def hour_job(name:str="hour job for ctritical stock"):
     logger.info(f"⚠️  {name} 执行中... ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})")
     spider = YF_US_Spider()
+    #CRITICAL_STOCKS_US = ["BTC-USD", "XPEV"]
     spider.update_latest(symbols=CRITICAL_STOCKS_US)
     strategy = StrategyHelper()
-    strategy.update_latest(symbols=CRITICAL_STOCKS_US, days=5, update=False)
+    strategy.update_latest(symbols=CRITICAL_STOCKS_US, days=3, update=False)
     dragon = Dragon()
     dragon.run_report(days_delta(today_str(), -1))
 
