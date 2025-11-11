@@ -629,11 +629,12 @@ if __name__ == "__main__":
         "INTC"
     ]
     symbols, update = CRITICAL_STOCKS_US, True
+    symbols = ['BTC-USD']
     update = False
     helper = StrategyHelper()
     #helper.analysis("MSTX", "2025-10-30", update=False)
     
     for symbol in symbols:
-        helper.update(symbol, 200, update=update)
+        helper.update(symbol, 10, update=update)
     
 

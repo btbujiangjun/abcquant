@@ -29,13 +29,25 @@ def is_today(date_str:str) -> bool:
     except ValueError:
         return False  # 格式不正确
 
-def is_yesterday(date_str:str) -> bool:
-    try:
-        date_obj = datetime.strptime(date_str, _match_format(date_str)).date()
-    except ValueError:
-        return False  # 格式不正确
+def is_yesterday(date:str|datetime) -> bool:
+    if isinstance(date, str):
+        try:
+            date = datetime.strptime(date, _match_format(date)).date()
+        except ValueError:
+            return False  # 格式不正确
     yesterday = (today() - timedelta(days=1)).date()
-    return date_obj == yesterday
+    return date == yesterday
+
+def date_format(date:str|datetime, date_format:str="YYMMDD") -> str:
+    if isinstance(date, str): 
+        date = datetime.strptime(date, get_format(date_format))
+    return date.strftime(get_format(date_format))
+
+def str2date(date_str:str, date_format:str="YYMMDD") -> datetime:
+    return datetime.strptime(date_str, get_format(date_format))
+
+def date2str(date:datetime, date_format:str="YYMMDD") -> str:
+    return datetime.strftime(date, get_format(date_format))
 
 def days_delta(date_str:str, days:int) -> str:
     date_format = _match_format(date_str)

@@ -35,8 +35,8 @@ class Dragon:
         self.db.ddl(table_ddl)
  
     def run_growth(self, date:str, top_k:int=10, days:int=5):
-        full_datetime = datetime.strptime(date, "%Y-%m-%d")
-        start_datetime = full_datetime - timedelta(days=days)
+        full_datetime = str2date(date, "YYMMDD")
+        start_datetime = date2str(full_datetime - timedelta(days=days), "YYMMDD")
         sql = f"DELETE FROM dragon_growth WHERE date = '{date}'"
         rows = self.db.update_sql(sql)
         if rows > 0:
@@ -96,8 +96,8 @@ ORDER BY flag DESC, pct_change DESC;
         return df
 
     def run_report(self, date:str, top_k:int=10, days:int=5):
-        full_datetime = datetime.strptime(date, "%Y-%m-%d")
-        start_datetime = full_datetime - timedelta(days=days)
+        full_datetime = str2date(date, "YYMMDD")
+        start_datetime = date2str(full_datetime - timedelta(days=days), "YYMMDD")
         sql = f"DELETE FROM dragon_report WHERE date = '{date}'"
         rows = self.db.update_sql(sql)
         if rows > 0:

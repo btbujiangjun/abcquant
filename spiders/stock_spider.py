@@ -103,7 +103,8 @@ class BaseStockSpider(ABC):
                 logger.info(f"{interval} price data is latest.")
                 continue
             df = self.fetch_stock_data(symbol, interval, latest_date, self.today)
-            dfs.append(df)
+            if len(df) > 0:
+                dfs.append(df)
         self.update_stock_price(pd.concat(dfs, ignore_index=True))
 
     def update_latest(self, symbols:list[str]=None, workers:int=1):
@@ -343,6 +344,8 @@ class YF_US_Spider(BaseStockSpider):
         start, end = self._period_adjust(interval, start, end)
         df = self._safe_download(symbol, start, end, interval)
         if not df.empty:
+            if symbol == "BTC-USD":
+                df.columns = df.columns.droplevel(1)
             df["symbol"] = symbol
             df["interval"] = interval
             df["amount"] = df["Close"] * df["Volume"]
@@ -359,6 +362,7 @@ class YF_US_Spider(BaseStockSpider):
             logger.info(f"Get price: {symbol}/{interval}/[{latest_date}] {len(df)} rows")
         else:
             logger.error(f"Not found data: {symbol} / {interval}, from {start} to {end}")
+            return pd.DataFrame()
         return df
 
     def update_stock_data_batch(self,
@@ -627,8 +631,8 @@ if __name__ == "__main__":
     pd.set_option('display.max_rows', None)    
     
     us = YF_US_Spider()
-    df = us.refresh_stock_base()
-    df.to_csv("data.csv", index=False, encoding="utf-8")
+    #df = us.refresh_stock_base()
+    #df.to_csv("data.csv", index=False, encoding="utf-8")
     #print(df)
 
     #us.update_stock_info()
@@ -637,7 +641,7 @@ if __name__ == "__main__":
     us.refresh_stock_base()
     df = us.query_stock_base(exchange="nasdaq")
     """
-    """
+    
     ticker = "BTC-USD"
 
     #df = us.query_stock_price(ticker, "1min", 360)    
@@ -646,7 +650,6 @@ if __name__ == "__main__":
     print(df)
     df = us.query_stock_price(ticker, "daily")    
     print(df)
-    """
 
 
 
