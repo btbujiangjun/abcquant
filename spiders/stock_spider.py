@@ -45,7 +45,8 @@ class BaseStockSpider(ABC):
         for attempt in range(1, self.max_retries + 1):
             try:
                 return func(*args, **kwargs)
-            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            #except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            except Exception as e:
                 wait = self.pause * attempt
                 logger.error(f"[Retry {attempt}/{self.max_retries}] {func.__name__} failed: {e}, wait {wait}s")
                 time.sleep(wait)
@@ -258,7 +259,6 @@ class YF_US_Spider(BaseStockSpider):
         exchange = "us"
         df['exchange'], df["status"] = exchange, 1
         df['symbol'] = df['symbol'].astype(str)
-        #df = df[df['symbol'].str.match(r'^[A-Za-z0-9_]+$', na=False)]
         df = df[~df['symbol'].str.contains(r'[.$]', regex=True, na=False)]
         super().refresh_stock_base(df, exchange)
         logger.info(f"Refresh stock base: US market, total symbols:{len(df)}")
@@ -407,11 +407,13 @@ class YF_US_Spider(BaseStockSpider):
                     df = _get_interval_data(tickers, symbol, interval)
                     if df.empty:
                         continue
+                    if symbol == "BTC-USD" and df.columns.nlevels > 1:
+                        df.columns = df.columns.droplevel(1)
                     df["symbol"], df["interval"], df["amount"] = symbol, interval, df["Close"] * df["Volume"]
                     df = _process_data(df, interval)
                     logger.info(f"Get price: {symbol}/{interval}/[{df['date'].iat[-1]}] {len(df)} rows")
                     dfs.append(df)
-            return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+            return pd.concat(dfs, ignore_index=True) if len(dfs) > 0 else pd.DataFrame()
 
         def _get_interval_data(tickers, symbol, interval):
             try:
@@ -440,7 +442,7 @@ class YF_US_Spider(BaseStockSpider):
                 df = _get_stock_data(tickers, batch)
                 if kv_list:
                     self.db.update_stock_info_batch(kv_list)
-                    logger.info(f"✅Update stock info: {i + batch_size}/{len(symbols)}")
+                    logger.info(f"✅Update stock info: {min(i + batch_size, len(symbols))}/{len(symbols)}")
                 if not df.empty:
                     self.update_stock_price(df)
                     logger.info(f"✅Update price: {df['date'].iat[-1]} {len(df)} rows") 

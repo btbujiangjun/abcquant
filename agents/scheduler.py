@@ -30,7 +30,7 @@ def hour_job(name:str="hour job for ctritical stock"):
     logger.info(f"⚠️  {name} 执行中... ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})")
     spider = YF_US_Spider()
     #CRITICAL_STOCKS_US = ["BTC-USD", "XPEV"]
-    spider.update_latest(symbols=CRITICAL_STOCKS_US)
+    spider.update_latest_batch(symbols=CRITICAL_STOCKS_US)
     strategy = StrategyHelper()
     strategy.update_latest(symbols=CRITICAL_STOCKS_US, days=3, update=False)
     dragon = Dragon()
@@ -46,7 +46,6 @@ class Scheduler:
         # 每天早上9点执行一次
         #self.scheduler.add_job(daily_job, 'cron', hour=hour, minute=minute)
         #self.scheduler.add_job(daily_job, 'interval', seconds=5, kwargs={'name':'Bob'})
-
 
         self.scheduler.add_job(
             hour_job, 
