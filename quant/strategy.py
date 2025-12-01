@@ -22,6 +22,8 @@ class IndicatorCalculator:
         ema_long=26, 
         macd_signal=9
     ) -> pd.DataFrame:
+        if len(df) < max([ema_short, ema_long, macd_signal]):
+            raise ValueError(f"Data is not enough:{len(df)}/{max([ema_short, ema_long, macd_signal])}")
         df = df.sort_values(by="date", ascending=True).reset_index(drop=True)
         df["ema_short"] = talib.EMA(df["close"], timeperiod=ema_short)
         df["ema_long"] = talib.EMA(df["close"], timeperiod=ema_long)
@@ -147,8 +149,11 @@ class Strategy:
             date=date, 
             top_k=week_peroid
         )   
-     
+ 
         # 2. 数据有效性检验
+        if len(df_day) < 1 or len(df_week) < 1:
+            raise ValueError(f"{symbol}/{date} data is none")
+
         latest_day  = df_day['date'].iat[-1].split()[0]
         latest_week = df_week['date'].iat[-1].split()[0]
         covered_week = days_delta(latest_week, 7) 
@@ -628,13 +633,13 @@ if __name__ == "__main__":
         "AMD",
         "INTC"
     ]
-    symbols, update = CRITICAL_STOCKS_US, True
-    symbols = ['BTC-USD']
+    symbols, update = CRITICAL_STOCKS_US, False
+    #symbols = ['BTC-USD']
     update = False
     helper = StrategyHelper()
     #helper.analysis("MSTX", "2025-10-30", update=False)
     
     for symbol in symbols:
-        helper.update(symbol, 10, update=update)
+        helper.update(symbol, 600, update=update)
     
 

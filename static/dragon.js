@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     loadDragon();
 });
 function updateDateLabels(date) {
-  ["Gainers","Losers","TopReport","BottomRepot",].forEach(id=>{
+  ["Gainers","Losers","TopReport","BottomReport",].forEach(id=>{
     document.getElementById("date"+id).textContent = date;
   });
 }

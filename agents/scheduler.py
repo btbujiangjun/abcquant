@@ -55,6 +55,7 @@ class Scheduler:
             kwargs={"name":"Hour job for critical stocks"}
         )
 
+        """
         self.scheduler.add_job(
             us_spider_job, 
             "date",
@@ -64,6 +65,8 @@ class Scheduler:
             #minute=0,
             kwargs={"name":"Yfinance US spider price"}
         )
+        """
+
         """
         self.scheduler.add_job(
             strategy_job, 

@@ -1,4 +1,4 @@
-# spiders/api_spider
+# spiders/stock_spider
 import time
 import requests
 import threading
@@ -351,10 +351,10 @@ class YF_US_Spider(BaseStockSpider):
             df["amount"] = df["Close"] * df["Volume"]
             df = df.reset_index()
 
-            if interval in self.min_intervals: 
-                df["date"] = df["Datetime"].dt.strftime("%Y-%m-%d %H:%M:%S")
-            else:
+            if interval in self.day_intervals:
                 df["date"] = df["Date"].dt.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                df["date"] = df["Datetime"].dt.strftime("%Y-%m-%d %H:%M:%S")
                 
             df = df[["symbol", "interval", "date", "Open", "High", "Low", "Close", "Volume", "amount"]]
             df.columns = self.data_format
@@ -645,6 +645,7 @@ if __name__ == "__main__":
     """
     
     ticker = "BTC-USD"
+    ticker = "MSTX"
 
     #df = us.query_stock_price(ticker, "1min", 360)    
     #print(df)

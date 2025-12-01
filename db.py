@@ -234,7 +234,7 @@ class QuantDB:
         sql = "SELECT a.symbol, a.name, b.market_cap FROM stock_base a left join stock_info b on a.symbol = b.symbol "
         if exchange is not None:
             sql += f" WHERE a.symbol IS NOT NULL AND a.status != '0' AND a.exchange = '{exchange}'"
-        sql += " ORDER BY b.market_cap DESC"
+        sql += " ORDER BY b.market_cap ASC"
         if top_k is not None:
             sql += f" Limit {top_k}" 
         df = self.db.query(sql)
@@ -325,6 +325,7 @@ class QuantDB:
             sql += f" LIMIT {top_k}"
         df = self.db.query(sql)
         df['date'] = pd.to_datetime(df['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+#        logger.info(f"{len(df)}\{sql}")
         return df
 
     def update_analysis_report(self, df:pd.DataFrame):

@@ -71,13 +71,18 @@ OpenAI_CONFIG = {
     "base_url": "https://free.v36.cm/v1/",    
     "api_key": "sk-lNnZ482Z77KMAdF32c6b686aE7824a0291097a438d7854B6"
 }
-"""
+
 OpenAI_CONFIG = {
     "model": "gpt-4o-mini",
     "base_url": "https://api.chatanywhere.tech",    
     "api_key": "sk-EiUbTR3acpNJkHhPoQBz5E35YW1jOLJRt7yE8vhU3aQuSx32"
 }
-"""
+
+MODELSCOPE_CONFIG = {
+    "model": "Qwen/Qwen3-235B-A22B-Instruct-2507",
+    "base_url": "https://api-inference.modelscope.cn/v1/",
+    "api_key": "ms-ac30f49d-421c-4d75-b0ff-dc51e55af7e1",
+}
 
 MODELSCOPE_CONFIG = {
     "model": "deepseek-ai/DeepSeek-V3.2-Exp",
