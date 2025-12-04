@@ -2,6 +2,8 @@
 from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 
+from db import QuantDB
+from quant.llm import ModelScopeClinet
 from utils.time import *
 from utils.logger import logger
 from config import CRITICAL_STOCKS_US 
@@ -9,37 +11,31 @@ from analysis.dragon import Dragon
 from quant.strategy import StrategyHelper
 from spiders.stock_spider import BaseStockSpider, YF_US_Spider
 
-def us_spider_job(name:str="YF_US_Spider"):
-    spider = YF_US_Spider()
+def us_spider_job(name:str, spider, dragon):
     logger.info(f"⚠️  job {name} starting...")
     #spider.refresh_stock_base()
     #spider.update_latest()
     spider.update_latest_batch()
-    dragon = Dragon()
     dragon.run_growth(days_delta(today_str(), -1))
  
-def strategy_job(name:str="LLMStrategy"):
+def strategy_job(name:str, strategy, dragon):
     logger.info(f"⚠️  job {name} starting...")
-    strategy = StrategyHelper()
     strategy.update_latest()
-
-    dragon = Dragon()
     dragon.run_growth(days_delta(today_str(), -1))
 
-def hour_job(name:str="hour job for ctritical stock"):
+def hour_job(name:str, spider, strategy, dragon):
     logger.info(f"⚠️  {name} 执行中... ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})")
-    spider = YF_US_Spider()
     #CRITICAL_STOCKS_US = ["BTC-USD", "XPEV"]
     spider.update_latest_batch(symbols=CRITICAL_STOCKS_US)
-    strategy = StrategyHelper()
     strategy.update_latest(symbols=CRITICAL_STOCKS_US, days=3, update=False)
-    dragon = Dragon()
     dragon.run_report(days_delta(today_str(), -1))
 
 class Scheduler:
     def __init__(self):
         self.scheduler = BackgroundScheduler()
         self.dragon = Dragon()
+        self.spider = YF_US_Spider()
+        self.strategy = StrategyHelper(ModelScopeClinet(), QuantDB())
 
     def start(self, hour:int=9, minute:int=0):
         """启动调度器"""
@@ -52,7 +48,12 @@ class Scheduler:
             'interval', 
             seconds=7200,
             next_run_time=datetime.now(),
-            kwargs={"name":"Hour job for critical stocks"}
+            kwargs={
+                "name":"Hour job for critical stocks", 
+                "spider": self.spider, 
+                "strategy": self.strategy,
+                "dragon": self.dragon
+            }
         )
 
         """
@@ -63,7 +64,11 @@ class Scheduler:
             #"cron",
             #hour=12,
             #minute=0,
-            kwargs={"name":"Yfinance US spider price"}
+            kwargs={
+                "name":"Yfinance US spider price",
+                "spider": self.spider, 
+                "dragon": self.dragon
+            }
         )
         """
 
@@ -72,7 +77,11 @@ class Scheduler:
             strategy_job, 
             "date",
             run_date=datetime.now(),
-            kwargs={"name":"LLM Strategy"}
+            kwargs={
+                "name":"LLM Strategy",
+                "strategy": self.strategy,
+                "dragon": self.dragon
+            }
         )
         """
         logger.info("Scheduler Agent: Scheduler started.")

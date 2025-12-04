@@ -1,8 +1,7 @@
 import openai
 import ollama
 import asyncio
-from openai import OpenAI
-from openai import AsyncOpenAI
+from openai import OpenAI, AsyncOpenAI
 from abc import ABC, abstractmethod
 from config import OpenAI_CONFIG, OLLAMA_CONFIG, MODELSCOPE_CONFIG
 

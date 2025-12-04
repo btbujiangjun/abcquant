@@ -8,98 +8,11 @@ from db import QuantDB
 from utils.time import *
 from utils.logger import logger
 from config import CRITICAL_STOCKS_US
-from quant.llm import LLMClient, ModelScopeClinet, OllamaClient, OpenAIClient
+from quant.indicator import IndicatorCalculator
+from quant.llm import LLMClient
 
 
-# =====================
-# 数据处理与指标计算
-# =====================
-class IndicatorCalculator:
-    @staticmethod
-    def add_ema_macd(
-        df: pd.DataFrame, 
-        ema_short=12, 
-        ema_long=26, 
-        macd_signal=9
-    ) -> pd.DataFrame:
-        if len(df) < max([ema_short, ema_long, macd_signal]):
-            raise ValueError(f"Data is not enough:{len(df)}/{max([ema_short, ema_long, macd_signal])}")
-        df = df.sort_values(by="date", ascending=True).reset_index(drop=True)
-        df["ema_short"] = talib.EMA(df["close"], timeperiod=ema_short)
-        df["ema_long"] = talib.EMA(df["close"], timeperiod=ema_long)
-        macd, signal, hist = talib.MACD(
-            df["close"], 
-            fastperiod=ema_short, 
-            slowperiod=ema_long, 
-            signalperiod=macd_signal
-        )
-        df["macd"], df["signal"], df["hist"] = macd, signal, hist
-        return df.round(2)
-
-    @staticmethod
-    def add_technical_indicators(
-        df: pd.DataFrame,
-        ema_short=12,
-        ema_long=26,
-        macd_signal=9,
-        rsi_period=14,
-        kdj_period=9,
-        bbands_period=20,
-        atr_period=14,
-    ) -> pd.DataFrame:
-        """
-        为 DataFrame 增加常用技术指标：
-        EMA、MACD、RSI、KDJ、布林带、ATR
-        """
-        df = df.sort_values(by="date", ascending=True).reset_index(drop=True)
-
-        # --- EMA ---
-        df["ema_short"] = talib.EMA(df["close"], timeperiod=ema_short)
-        df["ema_long"] = talib.EMA(df["close"], timeperiod=ema_long)
-
-        # --- MACD ---
-        macd, signal, hist = talib.MACD(
-            df["close"],
-            fastperiod=ema_short,
-            slowperiod=ema_long,
-            signalperiod=macd_signal,
-        )
-        df["macd"], df["signal"], df["hist"] = macd, signal, hist
-
-        # --- RSI ---
-        df["rsi"] = talib.RSI(df["close"], timeperiod=rsi_period)
-
-        # --- KDJ (基于 Stochastic Oscillator) ---
-        lowk, highd = talib.STOCH(
-            df["high"],
-            df["low"],
-            df["close"],
-            fastk_period=kdj_period,
-            slowk_period=3,
-            slowk_matype=0,
-            slowd_period=3,
-            slowd_matype=0,
-        )
-        df["kdj_k"], df["kdj_d"] = lowk, highd
-        df["kdj_j"] = 3 * df["kdj_k"] - 2 * df["kdj_d"]
-
-        # --- Bollinger Bands ---
-        upper, middle, lower = talib.BBANDS(
-            df["close"],
-            timeperiod=bbands_period,
-            nbdevup=2,
-            nbdevdn=2,
-            matype=0,
-        )
-        df["bb_upper"], df["bb_mid"], df["bb_lower"] = upper, middle, lower
-
-        # --- ATR (平均真实波幅) ---
-        df["atr"] = talib.ATR(df["high"], df["low"], df["close"], timeperiod=atr_period)
-
-        return df.round(2)
-
-
-class PriceDataPeroidInvalidError(Exception):
+class PriceDataInvalidError(Exception):
     def __init__(self, 
             symbol:str,
             date:str, 
@@ -158,7 +71,7 @@ class Strategy:
         latest_week = df_week['date'].iat[-1].split()[0]
         covered_week = days_delta(latest_week, 7) 
         if latest_day != date or covered_week < date:
-            raise PriceDataPeroidInvalidError(symbol, date, latest_day, latest_week)
+            raise PriceDataInvalidError(symbol, date, latest_day, latest_week)
         
         # 3. 股票基本信息
         stock_info = self.db.query_stock_info(symbol)
@@ -174,8 +87,8 @@ class Strategy:
 
 
         # 4. 加指标
-        df_day = IndicatorCalculator.add_ema_macd(df_day)
-        df_week = IndicatorCalculator.add_ema_macd(
+        df_day = IndicatorCalculator.calc_ema_macd(df_day)
+        df_week = IndicatorCalculator.calc_ema_macd_kdj_boll(
             df_week, 
             ema_short=6, 
             ema_long=13, 
@@ -545,10 +458,8 @@ class StrategyFactory:
         return cls._strategies[name](**kwargs)
 
 class StrategyHelper():
-    def __init__(self):
-        #self.llm = OpenAIClient()
-        #self.llm = OllamaClient()
-        self.llm = ModelScopeClinet()
+    def __init__(self, llm:LLMClient, db:QuantDB=QuantDB()):
+        self.llm = llm
         strategy_names = [
             "three_filters", 
             "double_bottom", 
@@ -556,7 +467,7 @@ class StrategyHelper():
             "cup_handle"
         ]
         strategy_names = ["three_filters"]
-        self.db = QuantDB()
+        self.db = db
         self.strategies = [StrategyFactory.create(name, llm=self.llm, db=self.db) for name in strategy_names]
 
     def analysis(self, symbol:str, date:str, update:bool=False) -> bool:
@@ -573,7 +484,7 @@ class StrategyHelper():
                 res = strategy.quant(symbol, date=date)
                 data[f"{res['strategy']}_score"]  = res["score"], 
                 data[f"{res['strategy']}_report"] = res["report"]
-            except PriceDataPeroidInvalidError as e:
+            except PriceDataInvalidError as e:
                 logger.warning(e)
                 return False
             except Exception as e:
@@ -608,7 +519,7 @@ class StrategyHelper():
             self.update(symbol, days=days, update=update)
 
 if __name__ == "__main__":
-    #LI
+    from quant.llm import ModelScopeClinet
     symbols = [
         "XPEV",
         "LI", 
@@ -636,7 +547,7 @@ if __name__ == "__main__":
     symbols, update = CRITICAL_STOCKS_US, False
     #symbols = ['BTC-USD']
     update = False
-    helper = StrategyHelper()
+    helper = StrategyHelper(ModelScopeClinet(), QuantDB())
     #helper.analysis("MSTX", "2025-10-30", update=False)
     
     for symbol in symbols:
