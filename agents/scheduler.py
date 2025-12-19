@@ -15,7 +15,7 @@ def us_spider_job(name:str, spider, dragon):
     logger.info(f"⚠️  job {name} starting...")
     #spider.refresh_stock_base()
     #spider.update_latest()
-    spider.update_latest_batch()
+    spider.update_latest_batch(period=20)
     dragon.run_growth(days_delta(today_str(), -1))
  
 def strategy_job(name:str, strategy, dragon):

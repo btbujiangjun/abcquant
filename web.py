@@ -10,6 +10,7 @@ from utils.logger import logger
 from core.interval import DAY_INTERVAL
 from config import CRITICAL_STOCKS_US
 from analysis.dragon import Dragon
+from utils.time import today_str, days_delta
 
 app = FastAPI()
 db_path = "./data/quant_data.db"
@@ -48,6 +49,31 @@ async def get_dragon_data(date: str = None):
         "Bottom_Report": [{"date": row["date"], "symbol": row["symbol"], "prev_score": row["prev_score"], "score": row["score"]} for _, row in bottom_report_df.iterrows()],
     }
 
+@app.get("/api/report")
+async def get_report(date:str = None, interval:int = 30):
+    end = date or today_str()
+    start = days_delta(end, -(interval or 30))
+    df = db.fetch_analysis_report(start, end) 
+    table = (
+        df.pivot(
+            index='date',
+            columns='symbol',
+            values='score'
+        ).sort_index(ascending=False).reset_index().fillna('-') 
+    )
+    table.columns.name = None
+
+    # 将 symbol 列转换为超链接
+    def symbol_link(col_name):
+        return [
+            f'<a href="/?ysmbol={symbol}">{symbol}</a>'
+            for symbol in col_name
+        ]
+
+    # 更新列名为 HTML 超链接
+    table.columns = ['date'] + symbol_link(table.columns[1:])
+
+    return {"data": table.to_html(index=False, escape=False)}
 
 # ===================
 # 后端接口

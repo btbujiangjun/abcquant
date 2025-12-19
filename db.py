@@ -325,7 +325,17 @@ class QuantDB:
             sql += f" LIMIT {top_k}"
         df = self.db.query(sql)
         df['date'] = pd.to_datetime(df['date'], errors='coerce').dt.strftime('%Y-%m-%d')
-#        logger.info(f"{len(df)}\{sql}")
+        return df
+
+    def fetch_analysis_report(self,
+            start_date:str,
+            end_date:str
+        ) -> pd.DataFrame:
+        sql = f"""
+        SELECT symbol, date, three_filters_score as score FROM analysis_report where date >= '{start_date}' and date <= '{end_date} ORDER BY date ASC, three_filters_score DESC'
+        """
+        df = self.db.query(sql)
+        df['date'] = pd.to_datetime(df['date'], errors='coerce').dt.strftime('%Y-%m-%d') 
         return df
 
     def update_analysis_report(self, df:pd.DataFrame):

@@ -2,8 +2,7 @@
 
 {% block content %}
 <style>
-  /* 双列布局 */
-  .section-grid {display: grid;grid-template-columns: repeat(auto-fill, minmax(48%, 1fr));gap: 24px;}
+  .section-grid {display: grid;grid-template-columns: repeat(auto-fill, minmax(98%, 1fr));gap: 24px;}
   .section {background: white;border-radius: 8px;box-shadow: 0 4px 10px rgba(0,0,0,0.08);padding: 10px;}
   .section-header {display: flex;justify-content: space-between;align-items: center;margin-bottom: 8px;}
   .section-header h3 {margin: 0;font-size: 1.2em;}
@@ -18,73 +17,15 @@
 <div class="toolbar">
   <input type="date" id="datePicker">
   <input type="text" id="dragonSearch" placeholder="输入股票代码或名称搜索">
-  <button onclick="loadDragon()">查询</button>
+  <button onclick="load_report()">查询</button>
 </div>
-
 <div class="section-grid">
-  <div class="section" id="TopGainersSection">
-    <div class="section-header">
-      <h3>📈 Top Gainers</h3>
-      <div class="date-selector">日期：<span id="dateGainers">--</span></div>
-    </div>
-    <table id="TopGainers10Table">
-      <thead><tr><th>排名</th><th>股票代码</th><th>昨收</th><th>今收</th><th>涨幅</th></tr></thead>
-      <tbody id="TopGainers10Body"><tr><td colspan="6">暂无数据</td></tr></tbody>
-    </table>
-  </div>
-
-  <div class="section" id="TopLosers10Section">
-    <div class="section-header">
-      <h3>📉 Top Losers</h3>
-      <div class="date-selector">日期：<span id="dateLosers">--</span></div>
-    </div>
-    <table id="TopLosers10Table">
-      <thead><tr><th>排名</th><th>股票代码</th><th>昨收</th><th>今收</th><th>涨幅</th></tr></thead>
-      <tbody id="TopLosers10Body"><tr><td colspan="6">暂无数据</td></tr></tbody>
-    </table>
-  </div>
-  <div class="section" id="buyTop10Section">
-    <div class="section-header">
-      <h3>💰 股票评分 Top 10</h3>
-      <div class="date-selector">日期：<span id="dateBuy">--</span></div>
-    </div>
-    <table id="buyTop10Table">
-      <thead><tr><th>排名</th><th>股票代码</th><th>前序评分</th><th>当前评分</th></tr></thead>
-      <tbody id="Top_Report10Body"><tr><td colspan="4">暂无数据</td></tr></tbody>
-    </table>
-  </div>
-
-  <div class="section" id="sellTop10Section">
-    <div class="section-header">
-      <h3>📉 卖出金额 Top 10</h3>
-      <div class="date-selector">日期：<span id="dateSell">--</span></div>
-    </div>
-    <table id="sellTop10Table">
-      <thead><tr><th>排名</th><th>股票代码</th><th>前序评分</th><th>当前评分</th></tr></thead>
-      <tbody id="Bottom_Report10Body"><tr><td colspan="4">暂无数据</td></tr></tbody>
-    </table>
-  </div>
-  <div class="section" id="netBuyTop10Section">
-    <div class="section-header">
-      <h3>📊 净买入 Top 10</h3>
-      <div class="date-selector">日期：<span id="dateNetBuy">--</span></div>
-    </div>
-    <table id="netBuyTop10Table">
-      <thead><tr><th>排名</th><th>股票代码</th><th>名称</th><th>净买入(万元)</th></tr></thead>
-      <tbody id="netBuyTop10Body"><tr><td colspan="4">暂无数据</td></tr></tbody>
-    </table>
-  </div>
-
-  <div class="section" id="activeTop10Section">
-    <div class="section-header">
-      <h3>🔥 活跃度 Top 10</h3>
-      <div class="date-selector">日期：<span id="dateActive">--</span></div>
-    </div>
+ <div class="section" id="report_table">
     <table id="activeTop10Table">
       <thead><tr><th>排名</th><th>股票代码</th><th>名称</th><th>活跃度指数</th></tr></thead>
       <tbody id="activeTop10Body"><tr><td colspan="4">暂无数据</td></tr></tbody>
     </table>
   </div>
 </div>
-<script src="/static/dragon.js"></script>
+<script src="/static/report.js"></script>
 {% endblock %}

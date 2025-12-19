@@ -14,6 +14,7 @@ CRITICAL_STOCKS = [
     {"name":"BABA", "exchange":"us"},
     {"name":"MU", "exchange":"us"},
     {"name":"AAPL", "exchange":"us"},
+    {"name":"APP", "exchange":"us"},
     {"name":"TQQQ", "exchange":"us"},
     {"name":"SQQQ", "exchange":"us"},
     #{"name":"QQQ", "exchange":"us"},
@@ -78,22 +79,25 @@ OpenAI_CONFIG = {
     "api_key": "sk-EiUbTR3acpNJkHhPoQBz5E35YW1jOLJRt7yE8vhU3aQuSx32"
 }
 
+
+MODELSCOPE_API_KEY = "ms-b6a9a293-d3c8-4b97-83aa-d3a9f5ad98c4"
+
 MODELSCOPE_CONFIG = {
     "model": "Qwen/Qwen3-235B-A22B-Instruct-2507",
     "base_url": "https://api-inference.modelscope.cn/v1/",
-    "api_key": "ms-ac30f49d-421c-4d75-b0ff-dc51e55af7e1",
+    "api_key": MODELSCOPE_API_KEY,
 }
 
 MODELSCOPE_CONFIG = {
     "model": "deepseek-ai/DeepSeek-V3.2-Exp",
     "base_url": "https://api-inference.modelscope.cn/v1/",
-    "api_key": "ms-ac30f49d-421c-4d75-b0ff-dc51e55af7e1",
+    "api_key": MODELSCOPE_API_KEY,
 }
 
 MODELSCOPE_CONFIG = {
     "model": "deepseek-ai/DeepSeek-R1-0528",
     "base_url": "https://api-inference.modelscope.cn/v1/",
-    "api_key": "ms-ac30f49d-421c-4d75-b0ff-dc51e55af7e1",
+    "api_key": MODELSCOPE_API_KEY,
 }
 
 OLLAMA_CONFIG = {

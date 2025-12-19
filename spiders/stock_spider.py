@@ -645,14 +645,14 @@ if __name__ == "__main__":
     """
     
     ticker = "BTC-USD"
-    ticker = "MSTZ"
+    ticker = "APP"
 
     #df = us.query_stock_price(ticker, "1min", 360)    
     #print(df)
     df = us.latest_stock_data(ticker)
     print(df)
-    df = us.query_stock_price(ticker, "daily")    
-    print(df)
+    #df = us.query_stock_price(ticker, "daily")    
+    #print(df)
 
 
 
