@@ -8,9 +8,9 @@ function initChart(){
     const container=document.getElementById('chart');
     chart = LightweightCharts.createChart(container,{width:container.clientWidth,height:600,layout:{background:{color:'#fff'},textColor:'#333'},grid:{vertLines:{color:'#eee'},horzLines:{color:'#eee'}},timeScale:{timeVisible:true}});
     candleSeries=chart.addCandlestickSeries({upColor:'#26a69a',downColor:'#ef5350',borderUpColor:'#26a69a',borderDownColor:'#ef5350',wickUpColor:'#26a69a',wickDownColor:'#ef5350'});
-    volumeSeries=chart.addHistogramSeries({color:'#26a69a',priceFormat:{type:'volume'},priceScaleId:'left',scaleMargins:{top:0.8,bottom:0}});
     ema5Series=chart.addLineSeries({color:'#f39c12',lineWidth:2});
     ema20Series=chart.addLineSeries({color:'#2980b9',lineWidth:2});
+    volumeSeries=chart.addHistogramSeries({color:'#FFA726',priceFormat:{type:'volume'},priceScaleId:'left',scaleMargins:{top:0.75,bottom:0}});
     isChartInit=true;
 }
 function initScoreChart(){
@@ -101,6 +101,8 @@ async function searchStock(symbol=null){
     const klines=await response.json(); latestKlines=klines;
     const formatted=klines.map(k=>({time:k.date,open:k.open,high:k.high,low:k.low,close:k.close}));
     candleSeries.setData(formatted); chart.timeScale().fitContent();
+    candleSeries.priceScale().applyOptions({ scaleMargins: { top: 0.2, bottom: 0.25 } });
+    volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.75, bottom: 0 } });
     const volData=klines.map(k=>({time:k.date,value:k.volume,color:k.close>=k.open?'#66bb6a':'#ff7043'}));
     volumeSeries.setData(volData);
     const ema5=calculateEMA(formatted,5); const ema20=calculateEMA(formatted,20);
