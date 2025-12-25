@@ -353,10 +353,12 @@ if __name__ == '__main__':
     db = DB("./data/quant_data.db")
     #sql = "ALTER TABLE stock_info ADD COLUMN update_time TEXT"
     #db.ddl(sql)
-    sql = "select * from stock_price where symbol='XPEV' and interval = 'daily' ORDER BY date DESC LIMIT 10"
+    sql = "select * from stock_price where symbol='BTC-USD' and interval = 'daily' ORDER BY date DESC LIMIT 1000"
 #    sql = "select * from analysis_report where symbol='XPEV' ORDER BY date ASC LIMIT 5"
-    sql = "select * from stock_info where symbol='TQQQ' LIMIT 5"
-    sql = "select count(*) from stock_base"
+    #sql = "select * from stock_info where symbol='TQQQ' LIMIT 5"
+    #sql = "select count(*) from stock_base"
+    #sql = "delete from stock_price where symbol ='BTC-USD'"
+    #db.update_sql(sql)
     df = db.query(sql)
     print(df.head)
 

@@ -646,6 +646,7 @@ if __name__ == "__main__":
     
     ticker = "BTC-USD"
     ticker = "APP"
+    ticker = "VNM"
 
     #df = us.query_stock_price(ticker, "1min", 360)    
     #print(df)

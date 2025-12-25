@@ -2,6 +2,20 @@
 {% block content %}
 <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+    pre {
+        background-color: #2d2d2d;
+        color: white;
+        padding: 20px;
+        border-radius: 8px;
+        overflow-x: auto;
+        word-wrap: break-word;
+    }
+    .json-key {color: #d17a22;}
+    .json-value {color: #55b3a1;}
+    .json-string {color: #e6db74;}
+    .json-number {color: #f99e38;}
+</style>
     <h1>🚀<span class="gradient-h1-title">基于LLM的股票K线分析系统</span>💰</h1>
     <div class="toolbar">
       <select id="stockSelector"></select>
@@ -23,7 +37,7 @@
     <div id="chart"></div>
     <div id="stockInfo">
         <div id="stockInfoSummary">点击查看股票基本信息</div>
-        <div id="stockInfoDetail" style="display:none;"></div>
+        <pre id="stockInfoDetail" style="display:none;"></pre>
     </div>
     <table id="customTable">
       <thead>

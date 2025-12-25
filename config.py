@@ -40,6 +40,7 @@ CRITICAL_STOCKS = [
     #{"name":"BIDU", "exchange":"us"},
     {"name":"EOSE", "exchange":"us"},
     {"name":"BTC-USD", "exchange":"us"},
+    {"name":"VNM", "exchange":"us"},
 ]
 
 CRITICAL_STOCKS_US = [stock["name"] for stock in CRITICAL_STOCKS if stock["exchange"]=="us"]
@@ -87,7 +88,7 @@ MODELSCOPE_CONFIG = {
     "base_url": "https://api-inference.modelscope.cn/v1/",
     "api_key": MODELSCOPE_API_KEY,
 }
-
+"""
 MODELSCOPE_CONFIG = {
     "model": "deepseek-ai/DeepSeek-V3.2-Exp",
     "base_url": "https://api-inference.modelscope.cn/v1/",
@@ -99,6 +100,7 @@ MODELSCOPE_CONFIG = {
     "base_url": "https://api-inference.modelscope.cn/v1/",
     "api_key": MODELSCOPE_API_KEY,
 }
+"""
 
 OLLAMA_CONFIG = {
     #"model": "gpt-oss:20b",

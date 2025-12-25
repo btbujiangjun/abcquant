@@ -77,13 +77,55 @@ async function loadStocks(symbol){
         searchStock(currentSymbol);
     }
 }
+
+// 格式化并高亮 JSON
+function formatJson(json) {
+    if (typeof json === 'string') {
+        try {
+            json = JSON.parse(json); // 如果是 JSON 字符串，解析为对象
+        } catch (e) {
+            console.error("Invalid JSON string:", e);
+            return json;
+        }
+    }
+
+    function recurse(value, depth = 0) {
+        if (value && typeof value === 'object') {
+            if (Array.isArray(value)) {
+                return value.map(item => recurse(item, depth + 1));
+            } else {
+                const formattedObj = {};
+                for (let key in value) {
+                    if (value.hasOwnProperty(key)) {
+                        if(typeof value[key] === 'string'){
+                            try{
+                                value[key] = JSON.parse(value[key])
+                            }catch (e){
+                            }
+                        }
+                        if (key == 'market_cap'){
+                            value[key] = formatMarketCap(value[key])
+                        }
+                        formattedObj[key] = recurse(value[key], depth + 1); // 递归处理
+                    }
+                }
+                return formattedObj;
+            }
+        }
+        return value;  // 基本类型直接返回
+    }
+    const formattedJson = recurse(json);
+    return JSON.stringify(formattedJson, null, 4);
+}
+
 // ===== 加载股票信息 =====
 async function loadStockInfo(symbol){
     const response=await fetch(`/stock_info/${symbol}`);
     if(!response.ok) return;
     const info=await response.json();
     const detailDiv=document.getElementById('stockInfoDetail');
-    detailDiv.innerHTML=`<b>${info.symbol}</b> - ${info.name}<br>行业: <b>${info.industry||'未知'}</b> | 市值:<b>${formatMarketCap(info.market_cap)}</b><br>info: ${info.info||'-'}`;
+    //detailDiv.innerHTML=`<b>${info.symbol}</b> - ${info.name}<br>行业: <b>${info.industry||'未知'}</b> | 市值:<b>${formatMarketCap(info.market_cap)}</b><br>info: ${info.info||'-'}`;
+    detailDiv.innerHTML = formatJson(info)
     const summaryDiv=document.getElementById('stockInfoSummary');
     summaryDiv.onclick=()=>{if(detailDiv.style.display==='none'){detailDiv.style.display='block'; summaryDiv.innerText='点击收起股票基本信息';} else {detailDiv.style.display='none'; summaryDiv.innerText='点击查看股票基本信息';}};
 }
@@ -152,7 +194,7 @@ function getParam(name) {
 
 function initDateSelector(){
     const end_date = new Date();
-    const start_date = new Date(end_date.getTime() - 60 * 24 * 60 * 60 * 1000);
+    const start_date = new Date(end_date.getTime() - 360 * 24 * 60 * 60 * 1000);
     document.getElementById("startDate").value = start_date.toISOString().slice(0, 10);
     document.getElementById("endDate").value = end_date.toISOString().slice(0, 10);
 }

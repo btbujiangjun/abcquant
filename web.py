@@ -66,7 +66,7 @@ async def get_report(date:str = None, interval:int = 30):
     # 将 symbol 列转换为超链接
     def symbol_link(col_name):
         return [
-            f'<a href="/?ysmbol={symbol}">{symbol}</a>'
+            f'<a href="/?symbol={symbol}">{symbol}</a>'
             for symbol in col_name
         ]
 
