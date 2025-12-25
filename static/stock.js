@@ -194,7 +194,7 @@ function getParam(name) {
 
 function initDateSelector(){
     const end_date = new Date();
-    const start_date = new Date(end_date.getTime() - 360 * 24 * 60 * 60 * 1000);
+    const start_date = new Date(end_date.getTime() - 720 * 24 * 60 * 60 * 1000);
     document.getElementById("startDate").value = start_date.toISOString().slice(0, 10);
     document.getElementById("endDate").value = end_date.toISOString().slice(0, 10);
 }

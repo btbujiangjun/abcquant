@@ -312,7 +312,7 @@ class QuantDB:
             end_date:str=None,
             score_only: bool=True,
         ) -> pd.DataFrame:
-        fields = "a.symbol, a.date, b.close, three_filters_score, double_bottom_score, double_top_score, cup_handle_score, update_time" if score_only else "a.*, b.close"
+        fields = "a.symbol, a.date, b.open, b.high, b.low, b.close, b.volume, three_filters_score, double_bottom_score, double_top_score, cup_handle_score, update_time" if score_only else "a.*, b.open, b.high, b.low, b.close, b.volume"
         sql = f"SELECT {fields} FROM analysis_report a left join stock_price b on a.symbol = b.symbol WHERE a.symbol = '{symbol}' AND a.date = SUBSTR(b.date, 1, 10) AND b.interval = 'daily'"
         if date is not None:
             sql += f" AND a.date = '{date}'"
@@ -321,7 +321,7 @@ class QuantDB:
         if end_date is not None:
             sql += f" AND a.date <= '{end_date}'"
         sql += " ORDER BY a.date DESC"
-        if top_k is not None:
+        if(start_date is None or end_date is None) and top_k is not None:
             sql += f" LIMIT {top_k}"
         df = self.db.query(sql)
         df['date'] = pd.to_datetime(df['date'], errors='coerce').dt.strftime('%Y-%m-%d')
