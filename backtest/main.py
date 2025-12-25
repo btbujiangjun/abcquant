@@ -10,7 +10,7 @@ def main():
     results = {}
 
     for symbol in symbols:
-        df = fetcher.fetch_llm_data(symbol, "2022-01-01", "2025-12-31")
+        df = fetcher.fetch_llm_data(symbol, "2025-01-01", "2025-12-31")
         #df = fetcher.fetch_yahoo(symbol, "2022-01-01", "2025-10-05")
 
         print(f"df:{len(df)}")
@@ -48,7 +48,7 @@ def main():
         print(f"value strategy:{perf}") 
 
         # 可视化
-        engine.plot_equity(equity_df)
+        engine.plot_equity(equity_df, symbol)
 
     logger.info(f"All Symbols Performance: {results}")
 

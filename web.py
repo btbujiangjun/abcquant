@@ -36,6 +36,10 @@ async def dragon_page(request: Request):
 async def report_page(request: Request):
     return templates.TemplateResponse("report.html", {"request": request, "page":"report", "title":"📊分析报告"})
 
+@app.get("/backtest")
+async def backtest_page(request: Request):
+    return templates.TemplateResponse("backtest.html", {"request": request, "page":"backtest", "title":"📊分析报告"})
+
 @app.get("/api/dragon")
 async def get_dragon_data(date: str = None):
     rise_df = dragon.get_growth(flag="TopGainers", date=date)
@@ -49,6 +53,35 @@ async def get_dragon_data(date: str = None):
         "Bottom_Report": [{"date": row["date"], "symbol": row["symbol"], "prev_score": row["prev_score"], "score": row["score"]} for _, row in bottom_report_df.iterrows()],
     }
 
+
+#对评分赋予不同的颜色
+def colorize(val):
+    if val == '-' or val is None:
+        return '<span class="score-missing">-</span>'
+    try:
+        v = float(val)
+    except Exception:
+        return val
+
+    def fmt(v):
+        return f"{v:.6f}".rstrip('0').rstrip('.')
+    text = fmt(v)    
+
+    cls = ""
+    if v <= -0.7:
+        cls = "score-negative-strong blink-soft"  # 深红 + 强闪
+    elif v < 0:
+        cls = "score-negative-weak"                 # 浅红
+    elif v < 0.5:
+        cls = "score-neutral"
+    elif v <= 0.7:
+        cls = "score-positive-weak"                 # 浅绿
+    else:
+        cls = "score-positive-strong blink-soft"    # 深绿 + 轻闪
+
+    return f'<span class="{cls}">{text}</span>'
+
+
 @app.get("/api/report")
 async def get_report(date:str = None, interval:int = 30):
     end = date or today_str()
@@ -61,6 +94,7 @@ async def get_report(date:str = None, interval:int = 30):
             values='score'
         ).sort_index(ascending=False).reset_index().fillna('-') 
     )
+
     table.columns.name = None
 
     # 将 symbol 列转换为超链接
@@ -73,6 +107,10 @@ async def get_report(date:str = None, interval:int = 30):
     # 更新列名为 HTML 超链接
     table.columns = ['date'] + symbol_link(table.columns[1:])
 
+    for col in table.columns:
+        if col != 'date':
+            table[col] = table[col].apply(colorize)
+    
     return {"data": table.to_html(index=False, escape=False)}
 
 # ===================

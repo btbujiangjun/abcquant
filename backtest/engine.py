@@ -37,12 +37,13 @@ class BacktestEngine:
         df['position'] = positions
         return df
 
-    def plot_equity(self, df):
+    def plot_equity(self, df, symbol:str):
+        title = f"{symbol} backtest result"
         plt.figure(figsize=(12,6))
-        plt.plot(df['date'], df['equity'], label='Equity Curve')
+        plt.plot(df['date'], df['equity'], label=title)
         plt.xlabel('Date')
         plt.ylabel('Equity')
-        plt.title('Equity Curve')
+        plt.title(title)
         plt.legend()
         plt.grid(True)
         plt.show()

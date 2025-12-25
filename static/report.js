@@ -2,7 +2,7 @@
 document.addEventListener('DOMContentLoaded',()=>{
     const now = new Date();
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    document.getElementById("datePicker").value = yesterday.toISOString().slice(0, 10);
+    document.getElementById("datePicker").value = now.toISOString().slice(0, 10);
     load_report();
 });
 async function load_report() {
@@ -16,6 +16,7 @@ async function load_report() {
 function render(tableBodyId, data) {
   const tbody = document.getElementById(tableBodyId);
   tbody.innerHTML = data;
+  console.log(data)
 }
 
 

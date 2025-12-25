@@ -11,6 +11,30 @@
   th, td {padding: 8px 10px;border: 1px solid #ddd;text-align: center;}
   th {background-color: #f8f8f8;}
   tbody tr:hover {background-color: #f9f9f9;}
+
+/* ===== 基础颜色 ===== */
+.score-positive-weak { color: #32cd32; font-weight: normal; }    /* 浅绿 */
+.score-positive-strong { color: #008000; font-weight: 600; }    /* 深绿 */
+.score-negative-weak { color: #ff6b6b; font-weight: normal; }   /* 浅红 */
+.score-negative-strong { color: #c1121f; font-weight: 600; }   /* 深红 */
+.score-neutral { color: #6b7280; }                              /* 中性灰 */
+.score-missing { color: #9ca3af; }                              /* '-' 灰 */
+
+/* ===== 闪烁效果 ===== */
+@keyframes blink-soft {
+  0% { opacity: 1; }
+  50% { opacity: 0.35; }
+  100% { opacity: 1; }
+}
+
+@keyframes blink-strong {
+  0% { opacity: 1; }
+  50% { opacity: 0.15; }
+  100% { opacity: 1; }
+}
+
+.blink-soft { animation: blink-soft 1.0s ease-in-out infinite; }
+.blink-strong { animation: blink-strong 0.8s ease-in-out infinite; }
 </style>
 <h1>🐲<span class="gradient-h1-title">分析报告</span>🐯</h1>
 

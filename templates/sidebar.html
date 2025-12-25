@@ -3,7 +3,7 @@
   <button class="tab-btn {% if page == 'index' %}active{% endif %}" onclick="location.href='/'">💹股票分析</button>
   <button class="tab-btn {% if page == 'dragon' %}active{% endif %}" onclick="location.href='/dragon'">🐲龙🐯榜🔥</button>
   <button class="tab-btn {% if page == 'report' %}active{% endif %}" onclick="location.href='/report'">📊分析报告</button>
-  <button class="tab-btn" onclick="location.href='/other2'">其他功能2</button>
+  <button class="tab-btn {% if page == 'backtest' %}active{% endif %}" onclick="location.href='/backtest'">🚀策略回测</button>
   <button class="toggle-btn" id="toggleSidebar">⏴</button>
 </div>
 
