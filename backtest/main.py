@@ -1,5 +1,5 @@
 from backtest.data_fetcher import DataFetcher
-from backtest.strategy import ValueStrategy, EMACrossStrategy, LLMStrategy
+from backtest.strategy import LongTermValueStrategy, EMACrossStrategy, LLMStrategy
 from backtest.engine import BacktestEngine
 from backtest.analyzer import Analyzer
 from utils.logger import logger
@@ -39,7 +39,7 @@ def main():
         logger.info(f"{symbol} Backtest Performance: {perf}")
 
         #价值投资
-        value_strategy = ValueStrategy(df)
+        value_strategy = LongTermValueStrategy(df)
         value_signals = value_strategy.generate_signals()
         engine = BacktestEngine(initial_cash=100000)
         equity_df = engine.run_backtest(value_signals)

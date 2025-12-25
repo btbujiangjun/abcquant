@@ -9,7 +9,7 @@ class BaseStrategy:
     def generate_signals(self):
         raise NotImplementedError("generate_signals() must be implemented by subclass")
 
-class ValueStrategy(BaseStrategy):
+class LongTermValueStrategy(BaseStrategy):
     def __init__(self, data):
         super().__init__(data)
 
