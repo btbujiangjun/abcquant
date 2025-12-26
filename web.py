@@ -1,3 +1,4 @@
+import json
 import pandas as pd
 from fastapi import Request
 from fastapi import FastAPI, HTTPException
@@ -11,11 +12,14 @@ from core.interval import DAY_INTERVAL
 from config import CRITICAL_STOCKS_US
 from analysis.dragon import Dragon
 from utils.time import today_str, days_delta
+from backtest.worker import DefaultWorker
+
 
 app = FastAPI()
 db_path = "./data/quant_data.db"
 db = QuantDB(db_path=db_path)
 dragon = Dragon(db_path=db_path)
+worker = DefaultWorker()
 
 # 绑定模板目录
 templates = Jinja2Templates(directory="templates")
@@ -56,28 +60,20 @@ async def get_dragon_data(date: str = None):
 
 #对评分赋予不同的颜色
 def colorize(val):
-    if val == '-' or val is None:
-        return '<span class="score-missing">-</span>'
+    if val == '-' or val is None: return '<span class="score-missing">-</span>'
     try:
         v = float(val)
     except Exception:
         return val
 
-    def fmt(v):
-        return f"{v:.6f}".rstrip('0').rstrip('.')
+    def fmt(v): return f"{v:.6f}".rstrip('0').rstrip('.')
     text = fmt(v)    
-
     cls = ""
-    if v <= -0.7:
-        cls = "score-negative-strong blink-soft"  # 深红 + 强闪
-    elif v < 0:
-        cls = "score-negative-weak"                 # 浅红
-    elif v < 0.5:
-        cls = "score-neutral"
-    elif v <= 0.7:
-        cls = "score-positive-weak"                 # 浅绿
-    else:
-        cls = "score-positive-strong blink-soft"    # 深绿 + 轻闪
+    if v <= -0.7: cls = "score-negative-strong blink-soft"  # 深红 + 强闪
+    elif v < 0: cls = "score-negative-weak"                 # 浅红
+    elif v < 0.5: cls = "score-neutral"
+    elif v <= 0.7: cls = "score-positive-weak"                 # 浅绿
+    else: cls = "score-positive-strong blink-soft"    # 深绿 + 轻闪
 
     return f'<span class="{cls}">{text}</span>'
 
@@ -94,7 +90,6 @@ async def get_report(date:str = None, interval:int = 30):
             values='score'
         ).sort_index(ascending=False).reset_index().fillna('-') 
     )
-
     table.columns.name = None
 
     # 将 symbol 列转换为超链接
@@ -112,6 +107,42 @@ async def get_report(date:str = None, interval:int = 30):
             table[col] = table[col].apply(colorize)
     
     return {"data": table.to_html(index=False, escape=False)}
+
+
+@app.get("/backtest/{symbol}")
+async def backtest(symbol:str, start:str, end:str):
+    json_obj = {}
+    json_obj["symbol"] = symbol
+    i, summary_table = 0, ""
+
+    results = worker.backtest(symbol, start, end)
+    for key, result in results.items():
+        df = result["equity_df"]
+        df['equity'] = df['equity'].round(2)
+        equity = [row["equity"] for _, row in df.iterrows()]
+        position = [row["position"] for _, row in df.iterrows()]
+        signals = [
+            {"date": row["date"], "type":row["ops"], "equity":row["equity"]} 
+            for _, row in df.iterrows()
+            if row["ops"] in ["BUY", "SELL"]
+        ]
+        if key == "LongTermValueStrategy":
+            json_obj["dates"] = [row["date"] for _, row in df.iterrows()]
+            json_obj["benchmark"] = equity
+            json_obj["name"] = key
+        else:
+            if "strategies" not in json_obj:
+                json_obj["strategies"] = []
+            json_obj["strategies"].append({
+                "name": key,
+                "equity": equity,
+                "signals": signals,
+            })
+        metrics = result["perf"]
+        i += 1
+        summary_table += f"<tr><td>{i}</td><td>{key}</td><td>{metrics['total_return']:.2%}</td><td>{metrics['max_drawdown']:.2%}</td><td>{metrics['win_rate']:.2%}</td><td>{df.iloc[0]['date']}-{df.iloc[-1]['date']}</td></tr>"
+    json_obj["summary_table"] = summary_table
+    return json.dumps(json_obj, ensure_ascii=False)
 
 # ===================
 # 后端接口

@@ -8,31 +8,27 @@ class BacktestEngine:
         self.slippage = slippage
 
     def run_backtest(self, df, signal_col='signal'):
-        cash = self.initial_cash
-        position = 0
-        equity_curve = []
-        positions = []
-
+        cash, position, positions, equity_curve, ops = self.initial_cash, 0, [], [], []
         for _, row in df.iterrows():
-            signal = row[signal_col]
-            price = float(row['close'])
-            date = row['date']
-
+            signal, price, date = row[signal_col], float(row['close']), row['date'] 
             if float(signal) == 1 and int(position) == 0:
-                buy_price = price * (1+self.slippage)
-                position = cash/buy_price
-                cash = 0
+                buy_price = price * (1 + self.slippage)
+                position, cash = cash/buy_price, 0
+                ops.append("BUY")
                 logger.info(f"BUY at {buy_price:.2f} in {date}, position={position:.2f}")
             elif float(signal) == -1 and position>0:
                 sell_price = price * (1 - self.slippage)
-                cash = position * sell_price * (1 - self.fee)
-                position = 0
+                cash, position = position * sell_price * (1 - self.fee), 0
                 logger.info(f"SELL at {sell_price:.2f} in {date}, cash={cash:.2f}")
+                ops.append("SELL")
+            else:
+                ops.append("-")
 
             total_equity = cash + position * price
             equity_curve.append(total_equity)
             positions.append(position)
 
+        df['ops'] = ops
         df['equity'] = equity_curve
         df['position'] = positions
         return df

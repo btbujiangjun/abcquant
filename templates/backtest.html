@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+  #backtest-container { width: 99%; height: 600px; margin-top: 20px; }
+  .section {background: white;border-radius: 8px;box-shadow: 0 4px 10px rgba(0,0,0,0.08);padding: 10px;}
+  .section-grid {display: grid;grid-template-columns: repeat(auto-fill, minmax(98%, 1fr));gap: 24px;}
+  table {width: 100%;border-collapse: collapse;margin-bottom: 10px;font-size: 14px;}
+  th, td {padding: 8px 10px;border: 1px solid #ddd;text-align: center;}
+  th {background-color: #f8f8f8;}
+  tbody tr:hover {background-color: #f9f9f9;}
+</style>
+<h1>🐲<span class="gradient-h1-title">股票回测</span>🐯</h1>
+<div class="toolbar">
+  <select id="stockSelector"></select>
+  <input type="text" id="stockSearch" placeholder="输入股票代码或名称搜索">
+  <label for="startDate">起始日期</label>
+  <input type="date" id="startDate" value="">
+  <label for="endDate">结束日期</label>
+  <input type="date" id="endDate" value="">
+  <button onclick="searchBacktest()">查询</button>
+</div>
+<div class="section-grid">
+ <div class="section">
+    <table>
+      <thead><tr><th>排名</th><th>策略名称</th><th>收益率</th><th>最大回撤</th><th>胜率</th><th>回测周期</th></tr></thead>
+      <tbody id="strategy_summary"><tr><td colspan="6">暂无数据</td></tr></tbody>
+    </table>
+  </div>
+  <div class="section">
+    <h1 class="gradient-title" id="mainTitle">策略回测分析</h1>
+    <div class="section" id="backtest-container"></div>
+  </div>
+</div>
+<script src="/static/backtest.js"></script>
+{% endblock %}

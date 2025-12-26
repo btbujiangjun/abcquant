@@ -88,13 +88,14 @@ MODELSCOPE_CONFIG = {
     "base_url": "https://api-inference.modelscope.cn/v1/",
     "api_key": MODELSCOPE_API_KEY,
 }
-"""
+
 MODELSCOPE_CONFIG = {
     "model": "deepseek-ai/DeepSeek-V3.2-Exp",
     "base_url": "https://api-inference.modelscope.cn/v1/",
     "api_key": MODELSCOPE_API_KEY,
 }
 
+"""
 MODELSCOPE_CONFIG = {
     "model": "deepseek-ai/DeepSeek-R1-0528",
     "base_url": "https://api-inference.modelscope.cn/v1/",

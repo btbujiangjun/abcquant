@@ -97,15 +97,8 @@ function formatJson(json) {
                 const formattedObj = {};
                 for (let key in value) {
                     if (value.hasOwnProperty(key)) {
-                        if(typeof value[key] === 'string'){
-                            try{
-                                value[key] = JSON.parse(value[key])
-                            }catch (e){
-                            }
-                        }
-                        if (key == 'market_cap'){
-                            value[key] = formatMarketCap(value[key])
-                        }
+                        if(typeof value[key] === 'string'){try{value[key] = JSON.parse(value[key])}catch (e){}}
+                        if (key == 'market_cap'){value[key] = formatMarketCap(value[key])}
                         formattedObj[key] = recurse(value[key], depth + 1); // 递归处理
                     }
                 }

@@ -8,9 +8,6 @@ class DataFetcher:
         self.db = QuantDB(db_path)
         self.fields = ['date', 'open', 'high', 'low', 'close', 'volume']
 
-    def _sort(self, df):
-        return df.sort_values("date", ascending=True).reset_index(drop=True)
-
     def fetch_llm_data(self, symbol, start:str|None=None, end:str|None=None):
         logger.info(f"Fetching {symbol} llm analysis data")
         df = self.db.query_analysis_report(
@@ -20,7 +17,7 @@ class DataFetcher:
         )
         df['score'] = df['three_filters_score']
         df = df[self.fields + ['score']]
-        return self._sort(df)
+        return df
 
     def fetch_db(self, symbol, start:str|None=None, end:str|None=None):
         logger.info(f"Fetching {symbol} data from db")
@@ -31,16 +28,17 @@ class DataFetcher:
             end_date = end,
         ) 
         df = df[self.fields]
-        return self._sort(df)
+        return df
 
     def fetch_yahoo(self, symbol, start, end):
         logger.info(f"Fetching {symbol} data from Yahoo Finance")
         df = yf.download(symbol, start=start, end=end)
         df.reset_index(inplace=True)
         df.rename(columns={'Date':'date','Open':'open','High':'high','Low':'low','Close':'close','Volume':'volume'}, inplace=True)
-        return self._sort(df)
+        return df
 
     def fetch_csv(self, file_path):
         logger.info(f"Loading data from {file_path}")
         df = pd.read_csv(file_path)
-        return self._sort(df)
+        assert all([field in df.columns for field in self.fields]), f"fields:{self.fields} are required" 
+        return df

@@ -1,4 +1,6 @@
 import numpy as np
+from itertools import product
+from utils.logger import logger
 from backtest.engine import BacktestEngine
 
 class Analyzer:
@@ -13,23 +15,20 @@ class Analyzer:
 
     @staticmethod
     def optimize_parameters(strategy_class, df, param_grid):
-        from itertools import product
-        best_perf = -np.inf
-        best_params = None
+        best_perf, best_params = -np.inf, {}
+        
+        if len(param_grid.items()) != 2:
+            logger.info(f"optimize_parameters: two parameters are required")
+            return best_params, best_perf    
+
         keys, values = zip(*param_grid.items())
-        print(f"keys:{keys}")
-        print(f"values:{values}")
         for v in product(*values):
             params = dict(zip(keys,v))
-
-            print(params)
-
             strat = strategy_class(df, **params)
             signals = strat.generate_signals()
             engine = BacktestEngine()
             equity_df = engine.run_backtest(signals)
             perf = Analyzer.performance(equity_df)['total_return']
             if perf > best_perf:
-                best_perf = perf
-                best_params = params
+                best_perf, best_params = perf, params
         return best_params, best_perf
