@@ -40,7 +40,8 @@
 
 <div class="toolbar">
   <input type="date" id="datePicker">
-  <input type="text" id="dragonSearch" placeholder="输入股票代码或名称搜索">
+  <label>查看周期(天)</label>
+  <input type="number" id="report_interval" min="1" max="900" step="1" value=30>
   <button onclick="load_report()">查询</button>
 </div>
 <div class="section-grid">

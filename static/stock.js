@@ -124,7 +124,6 @@ async function loadStockInfo(symbol){
     if(!response.ok) return;
     const info=await response.json();
     const detailDiv=document.getElementById('stockInfoDetail');
-    //detailDiv.innerHTML=`<b>${info.symbol}</b> - ${info.name}<br>行业: <b>${info.industry||'未知'}</b> | 市值:<b>${formatMarketCap(info.market_cap)}</b><br>info: ${info.info||'-'}`;
     detailDiv.innerHTML = formatJson(info)
     const summaryDiv=document.getElementById('stockInfoSummary');
     summaryDiv.onclick=()=>{if(detailDiv.style.display==='none'){detailDiv.style.display='block'; summaryDiv.innerText='点击收起股票基本信息';} else {detailDiv.style.display='none'; summaryDiv.innerText='点击查看股票基本信息';}};

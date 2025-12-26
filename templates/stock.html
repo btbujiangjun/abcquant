@@ -3,6 +3,7 @@
 <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
+    /*for stock info json data*/
     pre {
         background-color: #2d2d2d;
         color: white;
@@ -18,6 +19,7 @@
 </style>
     <h1>🚀<span class="gradient-h1-title">基于LLM的股票K线分析系统</span>💰</h1>
     <div class="toolbar">
+      <label>选择股票</label>
       <select id="stockSelector"></select>
       <input type="text" id="stockSearch" placeholder="输入股票代码或名称搜索">
       <label for="startDate">起始日期</label>

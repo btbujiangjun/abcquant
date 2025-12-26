@@ -5,9 +5,10 @@ document.addEventListener('DOMContentLoaded',()=>{
     document.getElementById("datePicker").value = now.toISOString().slice(0, 10);
     load_report();
 });
+document.getElementById("datePicker").addEventListener('change', load_report);
 async function load_report() {
   const date = document.getElementById("datePicker").value;
-  const interval = 30
+  const interval = document.getElementById("report_interval").value
   const resp = await fetch(`/api/report?date=${date}&interval=${interval}`);
   const data = await resp.json();
   render("report_table", data.data);

@@ -545,7 +545,7 @@ if __name__ == "__main__":
         "INTC"
     ]
     symbols, update = CRITICAL_STOCKS_US, False
-    symbols = ['APP']
+    symbols = ['VNM']
     update = False
     helper = StrategyHelper(ModelScopeClinet(), QuantDB())
     #helper.analysis("MSTX", "2025-10-30", update=False)

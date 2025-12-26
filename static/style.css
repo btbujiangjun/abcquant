@@ -10,7 +10,7 @@ body { margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,
 .tab-content { display:none; }
 .tab-content.active { display:block; }
 .toolbar { display:flex; gap:10px; align-items: center; margin-bottom:20px; flex-wrap:wrap; }
-.toolbar input[type="date"] { padding: 5px 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;}
+.toolbar input[type="date"] {width: 100%; min-width: 140px; max-width: 180px; padding: 9px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; box-sizing: border-box;}
 input,select,button { padding:10px; border:1px solid #ccc; border-radius:4px; }
 input { flex:1; min-width:120px; }
 button { background-color:#3498db; color:white; border:none; cursor:pointer; }

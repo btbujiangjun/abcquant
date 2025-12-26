@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     document.getElementById("datePicker").value = yesterday.toISOString().slice(0, 10);
     loadDragon();
 });
+document.getElementById("datePicker").addEventListener('change', loadDragon);
 function updateDateLabels(date) {
   ["Gainers","Losers","TopReport","BottomReport",].forEach(id=>{
     document.getElementById("date"+id).textContent = date;
