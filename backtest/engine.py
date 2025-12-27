@@ -15,11 +15,11 @@ class BacktestEngine:
                 buy_price = price * (1 + self.slippage)
                 position, cash = cash/buy_price, 0
                 ops.append("BUY")
-                logger.info(f"BUY at {buy_price:.2f} in {date}, position={position:.2f}")
+                #logger.info(f"BUY at {buy_price:.2f} in {date}, position={position:.2f}")
             elif float(signal) == -1 and position>0:
                 sell_price = price * (1 - self.slippage)
                 cash, position = position * sell_price * (1 - self.fee), 0
-                logger.info(f"SELL at {sell_price:.2f} in {date}, cash={cash:.2f}")
+                #logger.info(f"SELL at {sell_price:.2f} in {date}, cash={cash:.2f}")
                 ops.append("SELL")
             else:
                 ops.append("-")
