@@ -8,7 +8,7 @@ class Analyzer:
     def performance(df):
         df = df.copy()
         df['returns'] = df['equity'].pct_change().fillna(0)
-        total_return = df['equity'].iloc[-1]/df['equity'].iloc[0]-1
+        total_return = df['equity'].iloc[-1] / df['equity'].iloc[0] - 1
         max_drawdown = ((df['equity'].cummax()-df['equity'])/df['equity'].cummax()).max()
         win_rate = (df['returns']>0).sum()/len(df)
         return {"total_return":total_return, "max_drawdown":max_drawdown, "win_rate":win_rate}

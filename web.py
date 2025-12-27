@@ -184,7 +184,6 @@ def get_analysis_report(symbol: str, start_date: str = None, end_date: str = Non
     if df.empty:
         raise HTTPException(status_code=404, detail="未找到该股票分析报告")
 
-    #df = df.where(pd.notnull(df), None)
     df = df.sort_values("date", ascending=False)
     return [
         {

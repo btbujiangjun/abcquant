@@ -520,37 +520,13 @@ class StrategyHelper():
 
 if __name__ == "__main__":
     from quant.llm import ModelScopeClinet
-    symbols = [
-        "XPEV",
-        "LI", 
-        "NIO", 
-        "BABA", 
-        "NVDA", 
-        "TSLA", 
-        "QQQ",
-        "TQQQ", 
-        "SQQQ", 
-        "MSTX", 
-        "MSTZ", 
-        "PDD", 
-        "NBIS", 
-        "CRWV", 
-        "SE", 
-        "HOOD", 
-        "BILI", 
-        "YINN",
-        "IXIC",
-        "MU",
-        "AMD",
-        "INTC"
-    ]
     symbols, update = CRITICAL_STOCKS_US, False
-    symbols = ['VNM']
-    update = False
+    #symbols = ['VNM']
+    #update = False
     helper = StrategyHelper(ModelScopeClinet(), QuantDB())
     #helper.analysis("MSTX", "2025-10-30", update=False)
     
     for symbol in symbols:
-        helper.update(symbol, 600, update=update)
+        helper.update(symbol, 1200, update=update)
     
 
