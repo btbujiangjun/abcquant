@@ -40,6 +40,23 @@ function render(tableBodyId, data) {
     const tbody = document.getElementById(tableBodyId);
     tbody.innerHTML = data;
 }
+function format_percent(value){
+    return (value * 100).toFixed(2) + "%"
+}
+function render_table(strategies){
+    html = ""
+    for (let i = 0; i < strategies.length; i++) {
+        const strategy = strategies[i];
+        name = strategy['strategy_name']
+        start = strategy['start_date']
+        end = strategy['end_date']
+        total_return = format_percent(strategy['total_return'])
+        max_drawdown = format_percent(strategy['max_drawdown'])
+        win_rate = format_percent(strategy['win_rate'])
+        html += `<tr><td>${i+1}</td><td>${name}</td><td>${total_return}</td><td>${max_drawdown}</td><td>${win_rate}</td><td>${start}-${end}</td></tr>`
+    }
+    render("strategy_summary", html)
+}
 
 const CHART_THEME = {
     benchmark: '#999999',  // 基准：深灰色
@@ -90,13 +107,7 @@ async function updateBacktest(symbol) {
                 smooth: true,
                 z: 2,
                 itemStyle: {color: color},
-                lineStyle: { 
-                    width: 2, 
-                    color: color,
-                    shadowColor: 'rgba(0,0,0,0.2)',
-                    shadowBlur: 10,
-                    shadowOffsetY: 5
-                },
+                lineStyle: { width: 2, color: color, shadowColor: 'rgba(0,0,0,0.2)', shadowBlur: 10, shadowOffsetY: 5},
                 areaStyle: {
                     color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{
                         offset: 0, color: color + '44' // 25% 不透明度
@@ -129,15 +140,21 @@ async function updateBacktest(symbol) {
         myChart.setOption({
             backgroundColor: '#ffffff',
             legend: { data: seriesList.map(s => s.name), textStyle:{fontWeight:'bold'}, top: '0%', left: 'center', padding: [10, 0], icon: 'roundRect',},
-            grid: {top: '8%', left: '2%', right: '2%', containLabel: true,},
+            grid: {top: '8%', bottom: '12%', left: '2%', right: '2%', containLabel: true,},
             tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: 'rgba(255, 255, 255, 0.95)', borderWidth: 1, borderColor: '#eee'},
+            dataZoom: [{
+                type: 'slider', show: true, xAxisIndex: [0], start: 0, end: 100, bottom: '2%', height: 25, borderColor: 'transparent', fillerColor: 'rgba(24, 144, 255, 0.1)',
+                handleIcon: 'path://M10.7,11.9v-1.3H9.3v1.3c-4.9,0.3-8.8,4.4-8.8,9.4c0,5,3.9,9.1,8.8,9.4v1.3h1.3v-1.3c4.9-0.3,8.8-4.4,8.8-9.4C19.5,16.3,15.6,12.2,10.7,11.9z M13.3,24.4H6.7V23h6.6V24.4z M13.3,19.6H6.7v-1.4h6.6V19.6z',
+                handleSize: '80%', textStyle: { color: '#999' },
+                handleStyle: { color: '#fff', shadowBlur: 3, shadowColor: 'rgba(0, 0, 0, 0.6)', shadowOffsetX: 2, shadowOffsetY: 2},
+            },{ type: 'inside', xAxisIndex: [0]}
+            ],
             xAxis: { type: 'category', data: actualDates, boundaryGap: false, axisLine: { lineStyle: { color: '#ccc' } }},
             yAxis: { scale: true, type: 'value', splitLine:{lineStyle: {type: 'dashed', color: '#f0f0f0'}}, axisLabel:{formatter: (value) => value.toLocaleString()}},
             series: seriesList
         }, true);
 
-        // 4.摘要
-        render("strategy_summary", res.summary_table) 
+        render_table(res.summary_data) 
         render("mainTitle", symbol + "多策略回测对比分析")
 
     } catch (err) {

@@ -5,21 +5,27 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from contextlib import asynccontextmanager
 
-from db import QuantDB
 from utils.logger import logger
 from core.interval import DAY_INTERVAL
 from config import CRITICAL_STOCKS_US
-from analysis.dragon import Dragon
 from utils.time import today_str, days_delta
-from backtest.worker import DefaultWorker
 
-
-app = FastAPI()
 db_path = "./data/quant_data.db"
-db = QuantDB(db_path=db_path)
-dragon = Dragon(db_path=db_path)
-worker = DefaultWorker()
+db, dragon, worker = None, None, None 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global worker, db, dragon
+    from db import QuantDB
+    from analysis.dragon import Dragon
+    from backtest.worker import DefaultWorker
+    worker = DefaultWorker()
+    db = QuantDB(db_path=db_path)
+    dragon = Dragon(db_path=db_path)
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 # 绑定模板目录
 templates = Jinja2Templates(directory="templates")
@@ -103,8 +109,7 @@ async def get_report(date:str = None, interval:int = 30):
     table.columns = ['date'] + symbol_link(table.columns[1:])
 
     for col in table.columns:
-        if col != 'date':
-            table[col] = table[col].apply(colorize)
+        if col != 'date': table[col] = table[col].apply(colorize)
     
     return {"data": table.to_html(index=False, escape=False)}
 
@@ -114,6 +119,8 @@ async def backtest(symbol:str, start:str, end:str):
     json_obj = {}
     json_obj["symbol"] = symbol
     i, summary_table = 0, ""
+
+    summary_data = []
 
     results = worker.backtest(symbol, start, end)
     for key, result in results.items():
@@ -133,15 +140,12 @@ async def backtest(symbol:str, start:str, end:str):
         else:
             if "strategies" not in json_obj:
                 json_obj["strategies"] = []
-            json_obj["strategies"].append({
-                "name": key,
-                "equity": equity,
-                "signals": signals,
-            })
+            json_obj["strategies"].append({ "name": key, "equity": equity, "signals": signals})
         metrics = result["perf"]
         i += 1
-        summary_table += f"<tr><td>{i}</td><td>{key}</td><td>{metrics['total_return']:.2%}</td><td>{metrics['max_drawdown']:.2%}</td><td>{metrics['win_rate']:.2%}</td><td>{df.iloc[0]['date']}-{df.iloc[-1]['date']}</td></tr>"
-    json_obj["summary_table"] = summary_table
+        metrics["strategy_name"], metrics["start_date"], metrics["end_date"] = key, df.iloc[0]['date'], df.iloc[-1]['date']
+        summary_data.append(metrics)
+    json_obj["summary_data"] = sorted(summary_data, key=lambda x: x['total_return'], reverse=True)
     return json.dumps(json_obj, ensure_ascii=False)
 
 # ===================
@@ -230,4 +234,3 @@ def get_stock_info(symbol: str):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
