@@ -11,18 +11,18 @@ class Analyzer:
     @staticmethod
     def performance(df):
         result = {
-            "total_return": 0,
-            "annual_return": 0,
-            "max_drawdown": 0,
-            "win_rate": 0,         # 日度胜率
-            "trade_win_rate": 0,   # 按笔胜率 (买/卖对)
-            "trade_count": 0,      # 总交易次数 (一买一卖算一次)
-            "sharpe": 0,
-            "total_days": 0,
-            "trade_days": 0,
-            "empty_days": 0,
-            "calmar": 0,
-            "pl_ratio": 0,
+            "total_return": 0,      # 总收益率
+            "annual_return": 0,     # 年化收益率    
+            "max_drawdown": 0,      # 最大回撤
+            "win_rate": 0,          # 日度胜率
+            "trade_win_rate": 0,    # 按笔胜率 (买/卖对)
+            "trade_count": 0,       # 总交易次数 (一买一卖算一次)
+            "sharpe": 0,            # 夏普比率
+            "total_days": 0,        # 交易天数
+            "trade_days": 0,        # 持仓天数
+            "empty_days": 0,        # 空仓天数
+            "calmar": 0,            # 卡玛比率
+            "pl_ratio": 0,          # 盈亏比
         }
 
         if df.empty:
@@ -101,6 +101,9 @@ class Analyzer:
         并行版参数优化
         :param n_jobs: 使用的CPU核心数，-1表示使用全部
         """
+        if isinstance(param_grid, str):
+            raise ValueError(f"Analyzer 期望收到 dict 类型的参数网格，但收到的是字符串: {param_grid}")
+
         if param_grid is None or len(param_grid) == 0:
             param_combinations = [{}]
         else:
@@ -117,12 +120,10 @@ class Analyzer:
         with ProcessPoolExecutor(max_workers=workers) as executor:
             results = list(executor.map(func, param_combinations))
 
-        # 遍历结果找最优解
+        # 遍历结果找最优解(当前只考虑总收益，可能需要多角度衡量)
         for params, perf_val, equity_df in results:
             if equity_df is not None and perf_val["total_return"] > best_perf_value:
                 best_perf, best_perf_value = perf_val, perf_val["total_return"]
-                best_params = params
-                best_equity = equity_df
-
+                best_params, best_equity = params, equity_df
         return best_params, best_perf, best_equity
 
