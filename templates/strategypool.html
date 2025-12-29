@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* 1. 变量定义：一处修改，全局生效 */
+    :root {
+        --primary-color: #1890ff;
+        --danger-color: #ff4d4f;
+        --bg-body: #f0f2f5;
+        --text-main: #262626;
+        --border-color: #f0f0f0;
+    }
+
+    /* 2. 布局优化 */
+    .container { max-width: 100%; margin: 0 auto; padding: 2px; }
+    
+    .section-card { 
+        background: white; border-radius: 8px; 
+        padding: 24px; margin-bottom: 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    /* 4. DataTables 间距美化 */
+    .dataTables_wrapper .dataTables_filter, 
+    .dataTables_wrapper .dataTables_length { margin-bottom: 16px !important; }
+    
+    table.dataTable { border: 1px solid var(--border-color) !important; border-radius: 4px; }
+    table.dataTable thead th { background: #fafafa; color: #595959; font-weight: 500; border-bottom: 1px solid var(--border-color); }
+
+    /* 5. 表单优化 */
+    .form-section form { display: grid; gap: 16px; }
+    
+    .input-label { display: block; margin-bottom: 8px; font-size: 14px; color: #595959; font-weight: 500; }
+    
+    .form-control {
+        width: 100%; padding: 10px 14px; border: 1px solid #d9d9d9;
+        border-radius: 4px; font-size: 14px; transition: all 0.3s;
+    }
+
+    .form-control:focus { border-color: var(--primary-color); outline: none; box-shadow: 0 0 0 2px rgba(24,144,255,0.1); }
+
+    /* 针对参数配置使用代码风格 */
+    textarea.form-control {
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        background: #fafafa; color: #272727; min-height: 120px;
+    }
+
+    /* 6. 按钮样式 */
+    .btn { cursor: pointer; border-radius: 4px; font-weight: 500; transition: 0.3s; padding: 8px 16px; border: 1px solid transparent; }
+    .btn-primary { background: var(--primary-color); color: white; border-color: var(--primary-color); }
+    .btn-primary:hover { background: #40a9ff; }
+    .btn-del { color: var(--danger-color); font-size: 13px; }
+    .btn-del:hover { text-decoration: underline; }
+
+</style>
+
+<div class="container">
+    <h1>🐲 <span class="gradient-h1-title">策略库配置中心</span> 🐯</h1>
+
+    <div class="section-card">
+        <table id="strategy_pool_table" class="display" style="width:100%">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>显示名称</th>
+                    <th>类路径</th>
+                    <th>网格参数</th>
+                    <th style="width: 60px;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data %}
+                <tr id="row-{{ row.id }}">
+                    <td>{{ row.id }}</td>
+                    <td style="font-weight: 500;">{{ row.strategy_name }}</td>
+                    <td><code style="color: #c41d7f;">{{ row.strategy_class }}</code></td>
+                    <td><small style="color: #666;">{{ row.param_configs }}</small></td>
+                    <td>
+                        <span class="btn btn-del" 
+                            data-id="{{ row.id }}" 
+                            data-name="{{ row.strategy_name }}" 
+                            style="cursor: pointer;">删除</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section-card">
+        <div class="title-container">
+            <h4 style="margin: 0 0 20px 0; color: var(--primary-color);">➕ 添加新策略</h4>
+        </div>
+        <form id="addForm">
+            <div>
+                <label class="input-label">策略显示名称</label>
+                <input type="text" id="strategy_name" class="form-control" placeholder="例如: 波动率突破策略" required>
+            </div>
+            
+            <div>
+                <label class="input-label">策略实现类 (Python Class Path)</label>
+                <input type="text" id="strategy_class" class="form-control" placeholder="backtest.strategy.YourStrategy" required>
+            </div>
+            
+            <div>
+                <label class="input-label">参数网格 (JSON 数组)</label>
+                <textarea id="param_configs" class="form-control" placeholder='{"period": [10, 20], "multiplier": [2.0, 3.0]}' required></textarea>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 120px; height: 44px;">存入策略库</button>
+        </form>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="/static/strategypool.js"></script>
+{% endblock %}

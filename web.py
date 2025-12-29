@@ -1,8 +1,7 @@
 import json
 import pandas as pd
-from fastapi import Request
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi import Request, Form, FastAPI, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
@@ -19,8 +18,8 @@ async def lifespan(app: FastAPI):
     global worker, db, dragon
     from db import QuantDB
     from analysis.dragon import Dragon
-    from backtest.worker import DefaultWorker
-    worker = DefaultWorker()
+    from backtest.worker import DynamicWorker
+    worker = DynamicWorker()
     db = QuantDB(db_path=db_path)
     dragon = Dragon(db_path=db_path)
     yield
@@ -46,9 +45,28 @@ async def dragon_page(request: Request):
 async def report_page(request: Request):
     return templates.TemplateResponse("report.html", {"request": request, "page":"report", "title":"📊分析报告"})
 
+@app.get("/strategypool")
+async def strategypool(request: Request):
+    data = db.fetch_strategy_pool()
+    data = data.to_dict(orient="records") if data is not None and len(data) > 0 else {}
+    return templates.TemplateResponse("strategypool.html", {"request": request, "data":data, "page":"strategypool", "title":"📊策略库"})
+@app.post("/strategypool/add")
+async def add_strategy(strategy_name: str = Form(...), strategy_class: str = Form(...), param_configs: str = Form(...)):
+    status = "success" if db.add_strategy_pool(strategy_name, strategy_class, json.dumps(param_configs, ensure_ascii=False)) > 0 else "failed"
+    return JSONResponse({"status": status})
+@app.post("/strategypool/del/{strategy_id}")
+async def delete_strategy(strategy_id: int):
+    status = "success" if db.del_strategy_pool(strategy_id) > 0 else "failed"
+    return JSONResponse({"status": status})
+
+
 @app.get("/backtest")
 async def backtest_page(request: Request):
-    return templates.TemplateResponse("backtest.html", {"request": request, "page":"backtest", "title":"📊分析报告"})
+    return templates.TemplateResponse("backtest.html", {"request": request, "page":"backtest", "title":"📊策略回测"})
+
+@app.get("/tradesignal")
+async def backtest_page(request: Request):
+    return templates.TemplateResponse("tradesignal.html", {"request": request, "page":"tradesignal", "title":"📊交易信号"})
 
 @app.get("/api/dragon")
 async def get_dragon_data(date: str = None):
@@ -123,7 +141,14 @@ async def backtest(symbol:str, start:str, end:str):
     summary_data = []
 
     results = worker.backtest(symbol, start, end)
-    for key, result in results.items():
+
+    sorted_results = sorted(
+        results.items(), 
+        key=lambda item: item[1]["equity_df"]["equity"].iloc[-1], 
+        reverse=True
+    )
+
+    for key, result in sorted_results:
         df = result["equity_df"]
         df['equity'] = df['equity'].round(2)
         equity = [row["equity"] for _, row in df.iterrows()]
@@ -142,7 +167,6 @@ async def backtest(symbol:str, start:str, end:str):
                 json_obj["strategies"] = []
             json_obj["strategies"].append({ "name": key, "equity": equity, "signals": signals})
         metrics = result["perf"]
-        i += 1
         metrics["strategy_name"], metrics["start_date"], metrics["end_date"] = key, df.iloc[0]['date'], df.iloc[-1]['date']
         summary_data.append(metrics)
     json_obj["summary_data"] = sorted(summary_data, key=lambda x: x['total_return'], reverse=True)

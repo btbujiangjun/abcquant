@@ -9,11 +9,27 @@
   th, td {padding: 8px 10px;border: 1px solid #ddd;text-align: center;}
   th {background-color: #f8f8f8;}
   tbody tr:hover {background-color: #f9f9f9;}
+  h1 {
+    text-align: left;
+    margin-top: 20px;
+    margin-bottom: 30px;
+    width: 100%;
+}
 </style>
 <h1>🐲<span class="gradient-h1-title">股票回测</span>🐯</h1>
 <div class="toolbar">
   <select id="stockSelector"></select>
   <input type="text" id="stockSearch" placeholder="输入股票代码或名称搜索">
+  <label>回测周期</label>
+  <select id="duration" placeholder="选择回测周期">
+    <option value="">选择周期或时间</option>
+    <option value="30">近一月</option>
+    <option value="90">近三月</option>
+    <option value="160">近六月</option>
+    <option value="360">近一年</option>
+    <option value="720">近两年</option>
+    <option value="1080">近三年</option>
+  </select>
   <label for="startDate">起始日期</label>
   <input type="date" id="startDate" value="">
   <label for="endDate">结束日期</label>
@@ -23,12 +39,27 @@
 <div class="section-grid">
  <div class="section">
     <table>
-      <thead><tr><th>排名</th><th>策略</th><th>收益率</th><th>最大回撤</th><th>胜率</th><th>回测周期</th></tr></thead>
-      <tbody id="strategy_summary"><tr><td colspan="6">暂无数据</td></tr></tbody>
+      <thead><tr>
+        <th>排名</th>
+        <th>策略</th>
+        <th>总收益率</th>
+        <th>年化收益</th>
+        <th>最大回撤</th>
+        <th>盈亏比</th>
+        <th>按天胜率</th>
+        <th>按笔胜率</th>
+        <th>夏普比率</th>
+        <th>卡玛比率</th>
+        <th>交易笔数</th>
+        <th>交易/持仓/空仓天数</th>
+        <th>参数</th>
+        <th>回测周期</th>
+      </tr></thead>
+      <tbody id="strategy_summary"><tr><td colspan="14">暂无数据</td></tr></tbody>
     </table>
   </div>
   <div class="section">
-    <h1 class="gradient-title" id="mainTitle">策略回测分析</h1>
+    <h1><span class="gradient-title" id="mainTitle">策略回测分析</span></h1>
     <div class="section" id="backtest-container"></div>
   </div>
 </div>

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+  .section-grid {display: grid;grid-template-columns: repeat(auto-fill, minmax(98%, 1fr));gap: 24px;}
+  .section {background: white;border-radius: 8px;box-shadow: 0 4px 10px rgba(0,0,0,0.08);padding: 10px;}
+  .section-header {display: flex;justify-content: space-between;align-items: center;margin-bottom: 8px;}
+  .section-header h3 {margin: 0;font-size: 1.2em;}
+  .date-selector {font-size: 0.9em;color: #666;}
+  table {width: 100%;border-collapse: collapse;margin-bottom: 10px;font-size: 14px;}
+  th, td {padding: 8px 10px;border: 1px solid #ddd;text-align: center;}
+  th {background-color: #f8f8f8;}
+  tbody tr:hover {background-color: #f9f9f9;}
+
+/* ===== 基础颜色 ===== */
+.score-positive-weak { color: #32cd32; font-weight: normal; }    /* 浅绿 */
+.score-positive-strong { color: #008000; font-weight: 600; }    /* 深绿 */
+.score-negative-weak { color: #ff6b6b; font-weight: normal; }   /* 浅红 */
+.score-negative-strong { color: #c1121f; font-weight: 600; }   /* 深红 */
+.score-neutral { color: #6b7280; }                              /* 中性灰 */
+.score-missing { color: #9ca3af; }                              /* '-' 灰 */
+
+/* ===== 闪烁效果 ===== */
+@keyframes blink-soft {
+  0% { opacity: 1; }
+  50% { opacity: 0.35; }
+  100% { opacity: 1; }
+}
+
+@keyframes blink-strong {
+  0% { opacity: 1; }
+  50% { opacity: 0.15; }
+  100% { opacity: 1; }
+}
+
+.blink-soft { animation: blink-soft 1.0s ease-in-out infinite; }
+.blink-strong { animation: blink-strong 0.8s ease-in-out infinite; }
+</style>
+<h1>🐲<span class="gradient-h1-title">交易信号</span>🐯</h1>
+
+<div class="toolbar">
+  <input type="date" id="datePicker">
+  <label>查看周期(天)</label>
+  <input type="number" id="report_interval" min="1" max="900" step="1" value=30>
+  <button onclick="load_report()">查询</button>
+</div>
+<div class="section-grid">
+ <div class="section" id="report_table">
+    <table id="activeTop10Table">
+      <thead><tr><th>排名</th><th>股票代码</th><th>名称</th><th>活跃度指数</th></tr></thead>
+      <tbody id="activeTop10Body"><tr><td colspan="4">暂无数据</td></tr></tbody>
+    </table>
+  </div>
+</div>
+<script src="/static/report.js"></script>
+{% endblock %}

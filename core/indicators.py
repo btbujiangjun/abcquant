@@ -42,3 +42,46 @@ class Indicators:
         rsi = 100 - (100 / (1 + rs))
         
         return rsi.fillna(50) # 填充初始 NaN 值
+
+    @staticmethod
+    def bbands(df: pd.DataFrame, period: int = 20, std_dev: int = 2, column: str = 'close'):
+        """
+        计算布林带 (Bollinger Bands)
+        返回: (中轨, 上轨, 下轨)
+        """
+        mid = df[column].rolling(window=period).mean()
+        std = df[column].rolling(window=period).std()
+        
+        upper = mid + (std * std_dev)
+        lower = mid - (std * std_dev)
+        
+        return mid, upper, lower
+
+    @staticmethod
+    def atr(df: pd.DataFrame, period: int = 14):
+        """
+        计算平均真实波幅 (Average True Range)
+        用途：用于设置波动率止损或计算头寸大小
+        """
+        high, low, prev_close = df['high'], df['low'], df['close'].shift(1)
+        tr = pd.concat([high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1).max(axis=1)
+        return tr.rolling(window=period).mean()
+
+    @staticmethod
+    def kdj(df: pd.DataFrame, n: int = 9, m1: int = 3, m2: int = 3):
+        """
+        计算 KDJ 指标
+        返回: (K值, D值, J值)
+        """
+        low_list = df['low'].rolling(window=n).min()
+        high_list = df['high'].rolling(window=n).max()
+        
+        # 计算 RSV (未成熟随机值)
+        rsv = (df['close'] - low_list) / (high_list - low_list) * 100
+        
+        # K, D 分别是 RSV 和 K 的 EMA
+        k = rsv.ewm(com=m1-1, adjust=False).mean()
+        d = k.ewm(com=m2-1, adjust=False).mean()
+        j = 3 * k - 2 * d
+        
+        return k, d, j

@@ -210,8 +210,20 @@ class QuantDB:
                 UNIQUE(symbol, date)
             )   
             """,
+            """
+            CREATE TABLE IF NOT EXISTS strategy_pool (
+                id INTEGER PRIMARY KEY,
+                strategy_name TEXT,
+                strategy_class TEXT,
+                param_configs TEXT,
+                UNIQUE(strategy_class, param_configs)
+            )
+            """,
         ]
-        self.db.ddl(table_ddl)
+        try:
+            self.db.ddl(table_ddl)
+        except Exception as e:
+            print(f"init_db error:{str(e)}\n{table_ddl}")
 
     def refresh_stock_base(self, df, exchange:str=None):
         if isinstance(df, pd.DataFrame) and not df.empty:
@@ -344,6 +356,20 @@ class QuantDB:
         else:
             logger.error("Update analysis report error: not data frame or empty.")
 
+    def fetch_strategy_pool(self) -> pd.DataFrame:
+        sql = "SELECT id, strategy_name, strategy_class, param_configs FROM strategy_pool ORDER BY id ASC"
+        return self.db.query(sql)
+
+    def add_strategy_pool(self, 
+            strategy_name:str,
+            strategy_class:str,
+            param_configs:str,
+        ) -> int:
+        sql = "INSERT INTO strategy_pool (strategy_name, strategy_class, param_configs) VALUES (?, ?, ?)"
+        values = (strategy_name, strategy_class, param_configs)
+        return self.db.update_sql_params(sql, values)
+    def del_strategy_pool(self, id:int)->int:
+        return self.db.update_sql(f"DELETE FROM strategy_pool WHERE ID={id}") 
 
 if __name__ == '__main__':
     pd.set_option('display.max_columns', None)
@@ -352,6 +378,7 @@ if __name__ == '__main__':
 
     db = DB("./data/quant_data.db")
     #sql = "ALTER TABLE stock_info ADD COLUMN update_time TEXT"
+    #sql = "DROP TABLE strategy_pool"
     #db.ddl(sql)
     sql = "select * from stock_price where symbol='BTC-USD' and interval = 'daily' ORDER BY date DESC LIMIT 1000"
 #    sql = "select * from analysis_report where symbol='XPEV' ORDER BY date ASC LIMIT 5"
@@ -362,8 +389,9 @@ if __name__ == '__main__':
     df = db.query(sql)
     print(df.head)
 
-    #db = QuantDB()
-    #df = db.query_stock_base(exchange="us")
+    #qdb = QuantDB()
+    #qdb.init_db()
+    #df = qdb.query_stock_base(exchange="us")
     #print(df)
 
     """

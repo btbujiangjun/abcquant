@@ -40,9 +40,8 @@ function render(tableBodyId, data) {
     const tbody = document.getElementById(tableBodyId);
     tbody.innerHTML = data;
 }
-function format_percent(value){
-    return (value * 100).toFixed(2) + "%"
-}
+function format_percent(value){ return (value * 100).toFixed(2) + "%"}
+function format_decimal(value, digits){return value.toFixed(digits)}
 function render_table(strategies){
     html = ""
     for (let i = 0; i < strategies.length; i++) {
@@ -51,9 +50,19 @@ function render_table(strategies){
         start = strategy['start_date']
         end = strategy['end_date']
         total_return = format_percent(strategy['total_return'])
+        annual_return = format_percent(strategy['annual_return'])
         max_drawdown = format_percent(strategy['max_drawdown'])
+        pl_ratio = format_decimal(strategy['pl_ratio'], 2)
         win_rate = format_percent(strategy['win_rate'])
-        html += `<tr><td>${i+1}</td><td>${name}</td><td>${total_return}</td><td>${max_drawdown}</td><td>${win_rate}</td><td>${start}-${end}</td></tr>`
+        trade_win_rate = format_percent(strategy['trade_win_rate'])
+        sharpe = format_decimal(strategy['sharpe'], 2)
+        calmar = format_decimal(strategy['calmar'], 2)
+        trade_count = strategy['trade_count']
+        total_days = strategy['total_days']
+        trade_days = strategy['trade_days']
+        empty_days = strategy['empty_days']
+        best_params = strategy['best_params']
+        html += `<tr><td>${i+1}</td><td>${name}</td><td>${total_return}</td><td>${annual_return}</td><td>${max_drawdown}</td><td>${pl_ratio}</td><td>${win_rate}</td><td>${trade_win_rate}</td><td>${sharpe}</td><td>${calmar}</td><td>${trade_count}</td><td>${total_days}/${trade_days}/${empty_days}</td><td>${best_params}</td><td>${start}-${end}</td></tr>`
     }
     render("strategy_summary", html)
 }
@@ -65,7 +74,22 @@ const CHART_THEME = {
         '#2fc25b', // 活力绿
         '#facc14', // 警戒黄
         '#722ed1', // 贵族紫
-        '#fa8c16'  // 暖阳橙
+        '#fa8c16', // 暖阳橙
+        '#13c2c2', // 明亮青
+        '#eb2f96', // 酱紫色
+        '#a0d911', // 青柠色
+        '#fa541c', // 炫赫赤
+        '#2f54eb', // 极客蓝
+        '#722ed1', // 极光紫
+        '#faad14', // 金盏花
+        '#52c41a', // 极光绿
+        '#0050b3', // 深海蓝
+        '#873bf4', // 罗兰紫
+        '#006d75', // 瓦松绿
+        '#ad8b00', // 橄榄黄
+        '#a8071a', // 赭石红
+        '#595959', // 中性灰
+        '#d9d9d9', // 浅灰色
     ],
     buy: '#ef5350', // 买入：红色
     sell: '#26a69a' // 卖出：青绿色
