@@ -30,7 +30,7 @@ class Worker:
             )
             best_perf["best_params"] = json.dumps(best_params)
             final_results[strategy_class.strategy_name] = {
-                "perf": best_perf, "equity_df": best_equity
+                "name":strategy_class.display, "perf": best_perf, "equity_df": best_equity
             }
         return final_results
 
@@ -49,6 +49,7 @@ class DynamicWorker:
                 logger.error(f"❌ 未能加载策略类: {class_name}")
                 continue
 
+            strategy_cls.display = row["strategy_name"]
             target_params = {}
             if isinstance(raw_params, dict):
                 target_params = raw_params

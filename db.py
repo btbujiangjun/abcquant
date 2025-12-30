@@ -3,9 +3,15 @@ import os
 import json
 from typing import List, Dict, Tuple, Any
 import sqlite3
-import pandas as pd
 from sqlalchemy.dialects.sqlite import insert
-from sqlalchemy import create_engine, Table, MetaData,UniqueConstraint
+from sqlalchemy import (
+    create_engine, 
+    Table, 
+    MetaData, 
+    UniqueConstraint
+)
+import pandas as pd
+from utils.time import str2date
 from utils.logger import logger
 from core.interval import DAY_INTERVAL 
 
@@ -281,7 +287,7 @@ class QuantDB:
 
     def query_stock_price(self, 
             symbol: str, 
-            interval: str=None,
+            interval: str='daily',
             date: str=None, 
             top_k:int=None,
             start_date:str=None,
@@ -309,6 +315,8 @@ class QuantDB:
 
         if interval in DAY_INTERVAL:
             df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
+        if "id" in df.columns:
+            df.drop(columns=['id'], inplace=True)
 
         return df.round(2)
 
@@ -380,53 +388,19 @@ if __name__ == '__main__':
     #sql = "ALTER TABLE stock_info ADD COLUMN update_time TEXT"
     #sql = "DROP TABLE strategy_pool"
     #db.ddl(sql)
-    sql = "select * from stock_price where symbol='BTC-USD' and interval = 'daily' ORDER BY date DESC LIMIT 1000"
-#    sql = "select * from analysis_report where symbol='XPEV' ORDER BY date ASC LIMIT 5"
-    #sql = "select * from stock_info where symbol='TQQQ' LIMIT 5"
-    #sql = "select count(*) from stock_base"
-    #sql = "delete from stock_price where symbol ='BTC-USD'"
-    #db.update_sql(sql)
+    """
+    sql = "select * from stock_price where symbol='XPEV' and interval = 'weekly' ORDER BY date DESC LIMIT 100"
     df = db.query(sql)
-    print(df.head)
-
-    #qdb = QuantDB()
-    #qdb.init_db()
-    #df = qdb.query_stock_base(exchange="us")
-    #print(df)
-
+    print(f"daily detail:{df.head}")
     """
-    # 显示所有行
-    pd.set_option('display.max_rows', None)
-    # 显示所有列
-    pd.set_option('display.max_columns', None)
-    # 每列完整显示（不省略中间内容）
-    pd.set_option('display.max_colwidth', None)
-    # 不折行显示
-    pd.set_option('display.expand_frame_repr', False)
-
-    db = QuantDB()
-    symbol = "LI"
-   
-    #db.init_db()
-    """
-
-    """
-    logger.info("Database and tables created successfully.")
-    df= db.query_stock_price("XPEV", "1min")
-    pd.set_option('display.max_columns', None)  # 显示所有列
-    pd.set_option('display.max_rows', None) 
-    print(df)
-    """
-    """
-    #database = DB("./data/quant_data.db")
-    #database.update_sql(f"DELETE FROM stock_base where exchange != 'us'")
-    #print(db.query_stock_base(exchange="cn"))
-    df = db.query_analysis_report(symbol)
-    #print(df["info"])
-    #df = db.query_stock_base("us")
-    print(df)
-    #df = db.query_stock_price(symbol, interval="daily", date="2025-10-03")
-    #print(df)
-    """
-
-
+    symbol = "XPEV"
+    qdb = QuantDB()
+    from core.ohlc import OHLCData, OHLC_FIELD
+    df_day = qdb.query_stock_price(
+        symbol=symbol,
+        start_date="2025-12-01",
+        end_date="2025-12-26",
+    )
+    print(df_day[OHLC_FIELD])
+    
+    print(OHLCData(df_day).daily_week()) 

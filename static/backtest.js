@@ -180,7 +180,6 @@ async function updateBacktest(symbol) {
 
         render_table(res.summary_data) 
         render("mainTitle", symbol + "多策略回测对比分析")
-
     } catch (err) {
         console.error("处理失败:", err);
         myChart.hideLoading();

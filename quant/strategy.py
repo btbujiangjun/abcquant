@@ -10,7 +10,7 @@ from utils.logger import logger
 from config import CRITICAL_STOCKS_US
 from quant.indicator import IndicatorCalculator
 from quant.llm import LLMClient
-
+from core.ohlc import OHLCData
 
 class PriceDataInvalidError(Exception):
     def __init__(self, 
@@ -45,8 +45,8 @@ class Strategy:
 
     def quant(self, 
             symbol: str, 
-            day_peroid: int=360, 
-            week_peroid: int=360,
+            day_peroid: int=200, 
+            week_peroid: int=50,
             date: str=None
         ) -> str:
         # 1. 获取股票价格数据
@@ -56,13 +56,8 @@ class Strategy:
             date=date, 
             top_k=day_peroid
         )
-        df_week = self.db.query_stock_price(
-            symbol, 
-            interval="weekly",
-            date=date, 
-            top_k=week_peroid
-        )   
- 
+        df_week = OHLCData(df_day).daily_week() 
+
         # 2. 数据有效性检验
         if len(df_day) < 1 or len(df_week) < 1:
             raise ValueError(f"{symbol}/{date} data is none")
@@ -100,6 +95,7 @@ class Strategy:
 
         # 6. 构造 prompt
         prompt = self.build_prompt(analysis)
+        logger.debug(prompt)
 
         # 7. 调用 LLM
         report = self.llm.chat(prompt)

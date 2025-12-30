@@ -41,7 +41,6 @@ $(document).ready(function() {
                 .catch(err => console.error("网络错误:", err));
         }
     });
-
 });
 
 

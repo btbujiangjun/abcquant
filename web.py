@@ -65,7 +65,7 @@ async def backtest_page(request: Request):
     return templates.TemplateResponse("backtest.html", {"request": request, "page":"backtest", "title":"📊策略回测"})
 
 @app.get("/tradesignal")
-async def backtest_page(request: Request):
+async def tradesignal_page(request: Request):
     return templates.TemplateResponse("tradesignal.html", {"request": request, "page":"tradesignal", "title":"📊交易信号"})
 
 @app.get("/api/dragon")
@@ -161,13 +161,13 @@ async def backtest(symbol:str, start:str, end:str):
         if key == "LongTermValueStrategy":
             json_obj["dates"] = [row["date"] for _, row in df.iterrows()]
             json_obj["benchmark"] = equity
-            json_obj["name"] = key
+            json_obj["name"] = result["name"] or key
         else:
             if "strategies" not in json_obj:
                 json_obj["strategies"] = []
-            json_obj["strategies"].append({ "name": key, "equity": equity, "signals": signals})
+            json_obj["strategies"].append({"name": result["name"] or key, "equity": equity, "signals": signals})
         metrics = result["perf"]
-        metrics["strategy_name"], metrics["start_date"], metrics["end_date"] = key, df.iloc[0]['date'], df.iloc[-1]['date']
+        metrics["strategy_name"], metrics["start_date"], metrics["end_date"] = result["name"] or key, df.iloc[0]['date'], df.iloc[-1]['date']
         summary_data.append(metrics)
     json_obj["summary_data"] = sorted(summary_data, key=lambda x: x['total_return'], reverse=True)
     return json.dumps(json_obj, ensure_ascii=False)

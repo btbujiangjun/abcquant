@@ -4,6 +4,7 @@ from core.indicators import Indicators
 
 class BaseStrategy:
     strategy_name = "BaseStrategy"
+    display = "基类策略"
 
     def __init__(self, data: pd.DataFrame):
         if data is None or len(data) < 2:
@@ -34,6 +35,9 @@ class LongTermValueStrategy(BaseStrategy):
     """长期持有策略：第一天买入，最后一天卖出"""
     strategy_name = "LongTermValueStrategy"
 
+    def __init__(self, data):
+        super().__init__(data)
+    
     def generate_signals(self):
         df = self.data.copy()
         df['signal'] = 0
