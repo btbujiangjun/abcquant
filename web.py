@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 
 from utils.logger import logger
 from core.interval import DAY_INTERVAL
+from core.ohlc import OHLCData
 from config import CRITICAL_STOCKS_US
 from utils.time import today_str, days_delta
 
@@ -67,6 +68,11 @@ async def backtest_page(request: Request):
 @app.get("/tradesignal")
 async def tradesignal_page(request: Request):
     return templates.TemplateResponse("tradesignal.html", {"request": request, "page":"tradesignal", "title":"📊交易信号"})
+@app.get("/api/tradesignal/{symbol}")
+async def tradesignal(symbol:str):
+    result = db.fetch_strategy_signal(symbol)
+    print(result)
+    return result
 
 @app.get("/api/dragon")
 async def get_dragon_data(date: str = None):
@@ -161,13 +167,15 @@ async def backtest(symbol:str, start:str, end:str):
         if key == "LongTermValueStrategy":
             json_obj["dates"] = [row["date"] for _, row in df.iterrows()]
             json_obj["benchmark"] = equity
-            json_obj["name"] = result["name"] or key
+            json_obj["name"] = result["strategy_name"] or key
         else:
             if "strategies" not in json_obj:
                 json_obj["strategies"] = []
-            json_obj["strategies"].append({"name": result["name"] or key, "equity": equity, "signals": signals})
+            json_obj["strategies"].append({"name": result["strategy_name"] or key, "equity": equity, "signals": signals})
         metrics = result["perf"]
-        metrics["strategy_name"], metrics["start_date"], metrics["end_date"] = result["name"] or key, df.iloc[0]['date'], df.iloc[-1]['date']
+        metrics["param_config"] = json.dumps(result["param_config"], ensure_ascii=False)
+        metrics["strategy_name"] = result["strategy_name"] or key
+        metrics["start_date"], metrics["end_date"] = df.iloc[0]['date'], df.iloc[-1]['date']
         summary_data.append(metrics)
     json_obj["summary_data"] = sorted(summary_data, key=lambda x: x['total_return'], reverse=True)
     return json.dumps(json_obj, ensure_ascii=False)
@@ -176,7 +184,7 @@ async def backtest(symbol:str, start:str, end:str):
 # 后端接口
 # ===================
 @app.get("/stocks")
-def get_us_stocks():
+def get_critical_stocks():
     """获取股票列表"""
     return [{"symbol": symbol, "name": symbol} for symbol in CRITICAL_STOCKS_US]
 
@@ -186,13 +194,10 @@ def get_klines(symbol: str, interval: str = "daily", start_date: str = None, end
     df = db.query_stock_price(symbol, interval=interval, start_date=start_date, end_date=end_date)
     if df.empty:
         raise HTTPException(status_code=404, detail="未找到该股票的K线数据")
-
-    # 自动补成交额 amount 字段
     if "amount" not in df.columns:
         df["amount"] = df["close"] * df.get("volume", 0)
 
-    return [
-        {
+    return [{
             "date": row["date"].split()[0] if interval in DAY_INTERVAL else row["date"].replace(" ", "T"),
             "open": float(row["open"]),
             "high": float(row["high"]),
@@ -204,7 +209,6 @@ def get_klines(symbol: str, interval: str = "daily", start_date: str = None, end
         for _, row in df.iterrows()
     ]
 
-
 @app.get("/quant_report/{symbol}")
 def get_analysis_report(symbol: str, start_date: str = None, end_date: str = None):
     """获取量化分析报告"""
@@ -213,6 +217,7 @@ def get_analysis_report(symbol: str, start_date: str = None, end_date: str = Non
         raise HTTPException(status_code=404, detail="未找到该股票分析报告")
 
     df = df.sort_values("date", ascending=False)
+    df = OHLCData(df).pct_change()
     return [
         {
             "symbol": row["symbol"],
@@ -227,6 +232,7 @@ def get_analysis_report(symbol: str, start_date: str = None, end_date: str = Non
             "double_top_report": row.get("double_top_report"),
             "cup_handle_score": safe_get(row, "cup_handle_score"),
             "cup_handle_report": row.get("cup_handle_report"),
+            "pct_change": row.get("pct_change", "-"),
         }
         for _, row in df.iterrows()
     ]
@@ -238,7 +244,19 @@ def safe_get(row, key, default=None):
         return default
     return val
 
-
+def to_jsonable(obj):
+    """递归将 numpy 类型转换为原生 python 类型"""
+    if isinstance(obj, dict):
+        return {k: to_jsonable(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [to_jsonable(v) for v in obj]
+    elif isinstance(obj, (np.int64, np.int32, np.int8)):
+        return int(obj)
+    elif isinstance(obj, (np.float64, np.float32)):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    return obj
 @app.get("/stock_info/{symbol}")
 def get_stock_info(symbol: str):
     """获取单只股票的基本信息"""

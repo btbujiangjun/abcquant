@@ -72,7 +72,12 @@ class Analyzer:
             # 盈亏比 (平均盈利 / 平均亏损的绝对值)
             pos_ret = active_returns[active_returns > 0]
             neg_ret = active_returns[active_returns < 0]
-            result["pl_ratio"] = float(np.mean(pos_ret) / np.abs(np.mean(neg_ret))) if len(neg_ret) > 0 else 0
+            if len(pos_ret) == 0:
+                result["pl_ratio"] = "-"
+            elif len(neg_ret) == 0:
+                result["pl_ratio"] = "+"
+            else:
+                result["pl_ratio"] = float(np.mean(pos_ret) / abs(np.mean(neg_ret)))
         
         # 年化收益 / 最大回撤 (假设回测周期转换为年)
         annual_return = (result["total_return"] / total_days) * 252

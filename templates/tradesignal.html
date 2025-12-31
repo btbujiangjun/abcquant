@@ -7,12 +7,14 @@
 <div class="toolbar">
     <label>选择股票</label>
     <select id="stockSelector"></select>
+    <input type="text" id="stockSearch" placeholder="输入股票代码或名称搜索">
+    <button onclick="loadData()">查询</button>    
 </div>
 <div class="dashboard-container">
     <div class="matrix-wrapper">
         <table id="matrixTable">
             <thead>
-                <tr id="headerRow"><th>Date</th></tr>
+                <tr id="headerRow"><th>日期</th></tr>
             </thead>
             <tbody id="matrixBody"></tbody>
         </table>

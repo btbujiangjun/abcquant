@@ -3,8 +3,8 @@ import numpy as np
 from core.indicators import Indicators
 
 class BaseStrategy:
-    strategy_name = "BaseStrategy"
-    display = "基类策略"
+    strategy_class = "BaseStrategy"
+    strategy_name = "基类策略"
 
     def __init__(self, data: pd.DataFrame):
         if data is None or len(data) < 2:
@@ -33,7 +33,7 @@ class BaseStrategy:
 
 class LongTermValueStrategy(BaseStrategy):
     """长期持有策略：第一天买入，最后一天卖出"""
-    strategy_name = "LongTermValueStrategy"
+    strategy_class = "LongTermValueStrategy"
 
     def __init__(self, data):
         super().__init__(data)
@@ -48,7 +48,7 @@ class LongTermValueStrategy(BaseStrategy):
 
 class EMACrossStrategy(BaseStrategy):
     """EMA 交叉策略：金叉买入，死叉卖出"""
-    strategy_name = "EMACrossStrategy"
+    strategy_class = "EMACrossStrategy"
 
     def __init__(self, data, short=12, long=26):
         super().__init__(data)
@@ -73,7 +73,7 @@ class EMACrossStrategy(BaseStrategy):
 
 class RSIStrategy(BaseStrategy):
     """RSI 逆势策略：超跌买入，超涨卖出"""
-    strategy_name = "RSIStrategy"
+    strategy_class = "RSIStrategy"
 
     def __init__(self, data, period=14, low=30, high=70):
         super().__init__(data)
@@ -98,7 +98,7 @@ class RSIStrategy(BaseStrategy):
 
 class BollingerStrategy(BaseStrategy):
     """布林带策略：价格回归与突破"""
-    strategy_name = "BollingerStrategy"
+    strategy_class = "BollingerStrategy"
 
     def __init__(self, data, period=20, std_dev=2, coefficient=0.05):
         super().__init__(data)
@@ -120,7 +120,7 @@ class BollingerStrategy(BaseStrategy):
 
 class VolatilityLLMStrategy(BaseStrategy):
     """波动率保护型 LLM 策略"""
-    strategy_name = "VolLLMStrategy"
+    strategy_class = "VolLLMStrategy"
 
     def __init__(self, data, buy_score=0.7, sell_score=0.0, period=10, vol_threshold=0.03):
         super().__init__(data)
@@ -144,7 +144,7 @@ class VolatilityLLMStrategy(BaseStrategy):
 
 class KeltnerStrategy(BaseStrategy):
     """肯特纳通道：结合 EMA 和 ATR 的趋势突破策略"""
-    strategy_name = "KeltnerStrategy"
+    strategy_class = "KeltnerStrategy"
 
     def __init__(self, data, period=20, multiplier=2.0, coefficient=0.05):
         super().__init__(data)
@@ -169,7 +169,7 @@ class KeltnerStrategy(BaseStrategy):
 
 class VolumePriceStrategy(BaseStrategy):
     """量价共振策略：放量上涨买入，缩量或破位卖出"""
-    strategy_name = "VolumePriceStrategy"
+    strategy_class = "VolumePriceStrategy"
 
     def __init__(self, data, 
             vol_period=20, 
@@ -200,7 +200,7 @@ class VolumePriceStrategy(BaseStrategy):
 
 class TripleBarrierLLMStrategy(BaseStrategy):
     """三重屏障 LLM：只在牛市且非超买状态下执行"""
-    strategy_name = "TripleBarrierLLMStrategy"
+    strategy_class = "TripleBarrierLLMStrategy"
 
     def __init__(self, data, buy_score=0.8, sell_score=0.0, rsi_period=14, ma_period=200, rsi_limit=70):
         super().__init__(data)
@@ -222,13 +222,13 @@ class TripleBarrierLLMStrategy(BaseStrategy):
         
         df['signal'] = np.where(conditions, 1, 
                        np.where(df['score'] <= self.sell_score, -1, 0))
-        
+       
         self.signals = df
         return df
 
 class AdaptiveVolStrategy(BaseStrategy):
     """自适应波动率：捕获从极度缩量到放量启动的瞬间"""
-    strategy_name = "AdaptiveVolStrategy"
+    strategy_class = "AdaptiveVolStrategy"
 
     def __init__(self, data, window=60, atr_period=14):
         super().__init__(data)
@@ -256,7 +256,7 @@ class ATRStopLLMStrategy(BaseStrategy):
     - 跟踪止损：止损位 = 最高价 - n * ATR (止损位只升不降)
     - 出场：价格跌破止损位 OR score <= sell_score
     """
-    strategy_name = "ATRStopLLMStrategy"
+    strategy_class = "ATRStopLLMStrategy"
 
     def __init__(self, data, buy_score=0.8, sell_score=0.2, period=14, atr_multiplier=2.5):
         super().__init__(data)
@@ -307,7 +307,7 @@ class ATRStopLLMStrategy(BaseStrategy):
 
 class LLMStrategy(BaseStrategy):
     """基于大模型评分的策略"""
-    strategy_name = "LLMStrategy"
+    strategy_class = "LLMStrategy"
 
     def __init__(self, data, buy_score=0.7, sell_score=0.0): 
         super().__init__(data)

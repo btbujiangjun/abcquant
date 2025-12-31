@@ -26,7 +26,24 @@ class OHLCData:
 
         self.data, self.interval = data, interval
 
-    def daily_week(self):
+    def pct_change(self, percentage:bool=True, calc_column:str="close") -> pd.DataFrame:
+        assert all(column in self.data.columns for column in [calc_column, 'date']), \
+            f"Column ['date', {calc_column}] are required."
+        column = "pct_change"
+        if column not in self.data.columns:
+            self.data['date'] = pd.to_datetime(self.data['date'])
+            self.data = self.data.sort_values(by='date', ascending=False)
+            self.data[column] = self.data['close'].ffill().pct_change(periods=-1)
+            if percentage:
+                self.data[column] = self.data['close'].pct_change(periods=-1).apply(
+                    lambda x: f"{x*100:.2f}%" if pd.notnull(x) else "0.00%"
+                )
+            else:
+                self.data[column] = self.data['close'].ffill().pct_change().round(2)
+            self.data["date"] = self.data["date"].dt.strftime('%Y-%m-%d')
+        return self.data
+
+    def daily_week(self) -> pd.DataFrame:
         if self.interval != "daily":
             raise ValueError(f"Only daily data can be resampled to weekly, got {self.interval}")
 

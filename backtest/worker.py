@@ -1,9 +1,9 @@
-import ast
 import json
 import pandas as pd
 from typing import Tuple, Type, Dict, Any
 from db import QuantDB
 from utils.logger import logger
+from utils.time import today_str
 from backtest.strategy import BaseStrategy
 from backtest.data_fetcher import DataFetcher
 from backtest.analyzer import Analyzer
@@ -22,20 +22,25 @@ class Worker:
         self.strategy_configs.append((strategy, param_config))
         logger.info(f"append strategy:{strategy.__name__} {param_config}")
 
-    def backtest(self, df: pd.DataFrame):
+    def backtest(self, symbol:str, df: pd.DataFrame):
         final_results = {}
         for strategy_class, param_grid in self.strategy_configs:
             best_params, best_perf, best_equity = Analyzer.optimize_parameters(
                 strategy_class, df, param_grid, n_jobs=self.n_jobs
             )
-            best_perf["best_params"] = json.dumps(best_params)
-            final_results[strategy_class.strategy_name] = {
-                "name":strategy_class.display, "perf": best_perf, "equity_df": best_equity
+            final_results[strategy_class.strategy_class] = {
+                "symbol": symbol,
+                "strategy_name": strategy_class.strategy_name, 
+                "strategy_class": strategy_class.strategy_class,
+                "param_config": best_params,
+                "perf": best_perf,
+                "equity_df": best_equity
             }
         return final_results
 
 class DynamicWorker:
     def __init__(self, engine=None, n_jobs=-1):
+        self.db = QuantDB()
         self.fetcher = DataFetcher()
         self.worker = Worker(engine or BacktestEngine(), n_jobs=n_jobs)
 
@@ -49,7 +54,7 @@ class DynamicWorker:
                 logger.error(f"❌ 未能加载策略类: {class_name}")
                 continue
 
-            strategy_cls.display = row["strategy_name"]
+            strategy_cls.strategy_name = row["strategy_name"]
             target_params = {}
             if isinstance(raw_params, dict):
                 target_params = raw_params
@@ -77,13 +82,28 @@ class DynamicWorker:
         """执行回测"""
         logger.info(f"🔍 正在为 {symbol} 执行回测...")
         df_data = self.fetcher.fetch_llm_data(symbol, start_date, end_date)
-        self.register_strategies(QuantDB().fetch_strategy_pool()) 
-        
         if df_data is None or df_data.empty:
             logger.error("数据源为空，无法执行回测")
             return {}
             
-        return self.worker.backtest(df_data)
+        self.register_strategies(self.db.fetch_strategy_pool()) 
+        return self.worker.backtest(symbol, df_data)
 
+    def backtest_online(self, symbol: str, start_date: str, end_date: str):
+        """实时回测，不支持LLM类strategy"""
+        pass
 
+        
+    def backtest_daily(self, symbol):
+        """天级例行任务，回测并入库"""
+        start, end = "1970-01-01", today_str()        
+        result = self.backtest(symbol, start, end).values()
+
+        if len(result) == 0:
+            logger.warning(f"🟡{symbol} backtest result is empty")
+        elif self.db.update_strategy_signal(result) > 0:
+            logger.info(f"💚{symbol} backtest finished")
+        else:
+            logger.info(f"⚠️ {symbol} backtest into db failed")
+         
 

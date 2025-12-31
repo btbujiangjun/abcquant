@@ -11,6 +11,29 @@ from db import QuantDB
 from utils.logger import logger
 from agents.scheduler import Scheduler
 
+
+import sys
+import warnings
+import numpy as np
+
+# 1. 强行将警告转为错误，这样才能触发异常堆栈
+warnings.simplefilter('error', RuntimeWarning)
+
+# 2. 定义一个异常钩子：一旦程序崩了，立刻开启 PDB 调试模式
+def info(type, value, tb):
+    if hasattr(sys, 'ps1') or not sys.stderr.isatty():
+        sys.__excepthook__(type, value, tb)
+    else:
+        import traceback, pdb
+        traceback.print_exception(type, value, tb)
+        print("\n--- 程序崩溃，进入交互式调试模式 ---")
+        pdb.post_mortem(tb) # 停在案发现场
+
+sys.excepthook = info
+
+
+
+
 def main():
     logger.info("🚀Starting quant spider project...")
 

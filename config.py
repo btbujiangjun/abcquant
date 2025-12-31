@@ -83,25 +83,25 @@ OpenAI_CONFIG = {
 
 MODELSCOPE_API_KEY = "ms-b6a9a293-d3c8-4b97-83aa-d3a9f5ad98c4"
 
-"""
 MODELSCOPE_CONFIG = {
     "model": "Qwen/Qwen3-235B-A22B-Instruct-2507",
     "base_url": "https://api-inference.modelscope.cn/v1/",
     "api_key": MODELSCOPE_API_KEY,
 }
 
+"""
 MODELSCOPE_CONFIG = {
     "model": "deepseek-ai/DeepSeek-V3.2-Exp",
     "base_url": "https://api-inference.modelscope.cn/v1/",
     "api_key": MODELSCOPE_API_KEY,
 }
-"""
 
 MODELSCOPE_CONFIG = {
     "model": "deepseek-ai/DeepSeek-R1-0528",
     "base_url": "https://api-inference.modelscope.cn/v1/",
     "api_key": MODELSCOPE_API_KEY,
 }
+"""
 
 OLLAMA_CONFIG = {
     #"model": "gpt-oss:20b",

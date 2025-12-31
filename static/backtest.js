@@ -61,7 +61,8 @@ function render_table(strategies){
         total_days = strategy['total_days']
         trade_days = strategy['trade_days']
         empty_days = strategy['empty_days']
-        best_params = strategy['best_params']
+        best_params = strategy['param_config']
+        //console.log(strategy)
         html += `<tr><td>${i+1}</td><td>${name}</td><td>${total_return}</td><td>${annual_return}</td><td>${max_drawdown}</td><td>${pl_ratio}</td><td>${win_rate}</td><td>${trade_win_rate}</td><td>${sharpe}</td><td>${calmar}</td><td>${trade_count}</td><td>${total_days}/${trade_days}/${empty_days}</td><td>${best_params}</td><td>${start}-${end}</td></tr>`
     }
     render("strategy_summary", html)

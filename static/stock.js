@@ -1,7 +1,6 @@
 let chart, candleSeries, volumeSeries, ema5Series, ema20Series;
 let scoreChart, scoreLineSeries, priceLineSeries, scoreLineWarning, scoreLineGood;
-let currentSymbol='', latestKlines=[];
-let isChartInit=false, isScoreChartInit=false;
+let currentSymbol='', isChartInit=false, isScoreChartInit=false;
 
 // ===== 图表初始化 =====
 function initChart(){
@@ -80,7 +79,7 @@ async function loadStocks(symbol){
 
 // 格式化并高亮 JSON
 function formatJson(json) {
-    if (typeof json === 'string') {
+    if(typeof json === 'string') {
         try {
             json = JSON.parse(json); // 如果是 JSON 字符串，解析为对象
         } catch (e) {
@@ -121,6 +120,16 @@ async function loadStockInfo(symbol){
     const summaryDiv=document.getElementById('stockInfoSummary');
     summaryDiv.onclick=()=>{if(detailDiv.style.display==='none'){detailDiv.style.display='block'; summaryDiv.innerText='点击收起股票基本信息';} else {detailDiv.style.display='none'; summaryDiv.innerText='点击查看股票基本信息';}};
 }
+
+function format_pct_change(val) {
+    let num = typeof val === 'string' ? parseFloat(val.replace('%', '')) : val * 100;
+    if (isNaN(num)) return { text: "0.00%", colorClass: "hold" };
+    const isPositive = num >= 0;
+    const colorClass = isPositive ? "up" : "down";
+    const sign = isPositive ? "+" : "";
+    return `<span class=${colorClass}>${sign}${num}%</span>`
+}
+
 // ===== 查询股票 =====
 async function searchStock(symbol=null){
     let sym=symbol||document.getElementById('stockSearch').value.trim()||document.getElementById('stockSelector').value;
@@ -132,7 +141,7 @@ async function searchStock(symbol=null){
     await loadStockInfo(sym);
     const response=await fetch(`/klines/${sym}?interval=${interval}&start_date=${start_date}&end_date=${end_date}`);
     if(!response.ok){alert('未找到该股票的K线数据'); return;}
-    const klines=await response.json(); latestKlines=klines;
+    const klines=await response.json(); 
     const formatted=klines.map(k=>({time:k.date,open:k.open,high:k.high,low:k.low,close:k.close}));
     candleSeries.setData(formatted); chart.timeScale().fitContent();
     candleSeries.priceScale().applyOptions({ scaleMargins: { top: 0.2, bottom: 0.25 } });
@@ -164,7 +173,7 @@ async function searchStock(symbol=null){
             const tr=document.createElement('tr');
             tr.innerHTML=`
                 <td style="width:120px"><b>${row.date}</b></br>更新:${row.update_time}</td>
-                <td style="width:80px"><b>${row.price?.toFixed(2)||'-'}</b></td>
+                <td style="width:80px" align="center"><b>${row.price?.toFixed(2)||'-'}<br>${format_pct_change(row.pct_change)}</b></td>
                 <td style="color:${getColorByScore(row.three_filters_score)}; font-size:30px">${row.three_filters_score??'-'}</td>
                 <td style="vertical-align: top;">${showReport(row.three_filters_report)||'-'}</td>`;
             tbody.appendChild(tr);

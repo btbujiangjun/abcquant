@@ -1,6 +1,8 @@
 # db.py
+import io
 import os
 import json
+import numpy as np
 from typing import List, Dict, Tuple, Any
 import sqlite3
 from sqlalchemy.dialects.sqlite import insert
@@ -225,6 +227,17 @@ class QuantDB:
                 UNIQUE(strategy_class, param_configs)
             )
             """,
+            """
+            CREATE TABLE IF NOT EXISTS strategy_signal (
+                symbol TEXT,
+                strategy_name TEXT,
+                strategy_class TEXT,
+                param_config TEXT,
+                perf TEXT, 
+                equity_df TEXT,
+                UNIQUE(symbol, strategy_class)
+            )
+            """,
         ]
         try:
             self.db.ddl(table_ddl)
@@ -379,6 +392,36 @@ class QuantDB:
     def del_strategy_pool(self, id:int)->int:
         return self.db.update_sql(f"DELETE FROM strategy_pool WHERE ID={id}") 
 
+    def fetch_strategy_signal(self, symbol:str):
+        sql = f"SELECT symbol, strategy_name, strategy_class, param_config, perf, equity_df FROM strategy_signal WHERE symbol = '{symbol}'"
+        df = self.db.query(sql)
+        return [{
+            "symbol": row["symbol"], 
+            "strategy_name": row["strategy_name"], 
+            "strategy_class": row["strategy_class"], 
+            "param_config": json.loads(row["param_config"]),
+            "perf": json.loads(row["perf"]),
+            "equity_df": pd.read_json(io.StringIO(row["equity_df"]), orient='split').replace([np.inf, -np.inf], np.nan).fillna(0).reset_index().to_dict(orient='records')
+        } for _, row in df.iterrows()]
+
+    def update_strategy_signal(self, keyvalues) -> int:
+        fileds = ['symbol', 'strategy_name', 'strategy_class', 'param_config', 'perf', 'equity_df']
+        rows = 0
+        keyvalues = sorted(keyvalues, key=lambda x: x.get('perf', {}).get('annual_return', 0), reverse=True)
+        for keyvalue in keyvalues: 
+            assert all(key in keyvalue.keys() for key in fileds), \
+                f"Keys:{fileds} are required"
+            if isinstance(keyvalue["param_config"], dict):
+                keyvalue["param_config"] = json.dumps(keyvalue["param_config"])
+            if isinstance(keyvalue["perf"], dict):
+                keyvalue["perf"] = json.dumps(keyvalue["perf"])
+            if isinstance(keyvalue["equity_df"], pd.DataFrame):
+                keyvalue["equity_df"] = keyvalue["equity_df"].sort_values(by='date', ascending=False).to_json(orient='split') 
+
+            sql = f"INSERT or REPLACE INTO strategy_signal({','.join(keyvalue.keys())})VALUES({','.join(['?']*len(keyvalue))})"
+            rows += self.db.update_sql_params(sql, keyvalue.values())
+        return rows
+
 if __name__ == '__main__':
     pd.set_option('display.max_columns', None)
     pd.set_option('display.max_colwidth', None)
@@ -388,13 +431,14 @@ if __name__ == '__main__':
     #sql = "ALTER TABLE stock_info ADD COLUMN update_time TEXT"
     #sql = "DROP TABLE strategy_pool"
     #db.ddl(sql)
-    """
     sql = "select * from stock_price where symbol='XPEV' and interval = 'weekly' ORDER BY date DESC LIMIT 100"
+    sql = "SELECT symbol, strategy_name, strategy_class, param_config, perf, equity_df FROM strategy_signal where symbol='XPEV'"
     df = db.query(sql)
-    print(f"daily detail:{df.head}")
+    print(f"{len(df)}")
     """
     symbol = "XPEV"
     qdb = QuantDB()
+    qdb.init_db() 
     from core.ohlc import OHLCData, OHLC_FIELD
     df_day = qdb.query_stock_price(
         symbol=symbol,
@@ -403,4 +447,6 @@ if __name__ == '__main__':
     )
     print(df_day[OHLC_FIELD])
     
-    print(OHLCData(df_day).daily_week()) 
+    print(OHLCData(df_day).daily_week())
+    """
+ 

@@ -2,50 +2,36 @@
 {% block content %}
 <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<style>
-    /*for stock info json data*/
-    pre {
-        background-color: #2d2d2d;
-        color: white;
-        padding: 20px;
-        border-radius: 8px;
-        overflow-x: auto;
-        word-wrap: break-word;
-    }
-    .json-key {color: #d17a22;}
-    .json-value {color: #55b3a1;}
-    .json-string {color: #e6db74;}
-    .json-number {color: #f99e38;}
-</style>
-    <h1>🚀<span class="gradient-h1-title">基于LLM的股票K线分析系统</span>💰</h1>
-    <div class="toolbar">
-      <label>选择股票</label>
-      <select id="stockSelector"></select>
-      <input type="text" id="stockSearch" placeholder="输入股票代码或名称搜索">
-      <label for="startDate">起始日期</label>
-      <input type="date" id="startDate" value="">
-      <label for="endDate">结束日期</label>
-      <input type="date" id="endDate" value="">
-      <select id="intervalSelector">
-        <option value="daily" selected>日线</option>
-        <option value="weekly">周线</option>
-        <option value="monthly">月线</option>
-      </select>
-      <button onclick="searchStock()">查询</button>
-    </div>
-    <div id="scoreChartTitle" class="gradient-title">分析报告得分折线图</div>
-    <div id="scoreChart"></div>
-    <div id="chartTitle" class="gradient-title">K线图</div>
-    <div id="chart"></div>
-    <div id="stockInfo">
-        <div id="stockInfoSummary">点击查看股票基本信息</div>
-        <pre id="stockInfoDetail" style="display:none;"></pre>
-    </div>
-    <table id="customTable">
-      <thead>
-        <tr><th colspan="4"><span class="gradient-title">分析报告</span></th></tr>
-      </thead>
-      <tbody id="customTableBody"><tr><td>请选择股票加载分析报告</td></tr></tbody>
-    </table>
+<link rel="stylesheet" href="/static/stock.css">
+<h1>🚀<span class="gradient-h1-title">基于LLM的股票K线分析系统</span>💰</h1>
+<div class="toolbar">
+  <label>选择股票</label>
+  <select id="stockSelector"></select>
+  <input type="text" id="stockSearch" placeholder="输入股票代码或名称搜索">
+  <label for="startDate">起始日期</label>
+  <input type="date" id="startDate" value="">
+  <label for="endDate">结束日期</label>
+  <input type="date" id="endDate" value="">
+  <select id="intervalSelector">
+    <option value="daily" selected>日线</option>
+    <option value="weekly">周线</option>
+    <option value="monthly">月线</option>
+  </select>
+  <button onclick="searchStock()">查询</button>
+</div>
+<div id="scoreChartTitle" class="gradient-title">分析报告得分折线图</div>
+  <div id="scoreChart"></div>
+  <div id="chartTitle" class="gradient-title">K线图</div>
+  <div id="chart"></div>
+  <div id="stockInfo">
+  <div id="stockInfoSummary">点击查看股票基本信息</div>
+  <pre id="stockInfoDetail" style="display:none;"></pre>
+</div>
+<table id="customTable">
+  <thead>
+    <tr><th colspan="4"><span class="gradient-title">分析报告</span></th></tr>
+  </thead>
+  <tbody id="customTableBody"><tr><td>请选择股票加载分析报告</td></tr></tbody>
+</table>
 <script src="/static/stock.js"></script>
 {% endblock %}

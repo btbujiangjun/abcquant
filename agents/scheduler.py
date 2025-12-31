@@ -9,6 +9,7 @@ from utils.logger import logger
 from config import CRITICAL_STOCKS_US 
 from analysis.dragon import Dragon
 from quant.strategy import StrategyHelper
+from backtest.worker import DynamicWorker
 from spiders.stock_spider import BaseStockSpider, YF_US_Spider
 
 def us_spider_job(name:str, spider, dragon):
@@ -23,18 +24,21 @@ def strategy_job(name:str, strategy, dragon):
     strategy.update_latest()
     dragon.run_growth(days_delta(today_str(), -1))
 
-def hour_job(name:str, spider, strategy, dragon):
+def hour_job(name:str, spider, strategy, dragon, worker):
     logger.info(f"⚠️  {name} 执行中... ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})")
     #CRITICAL_STOCKS_US = ["BTC-USD", "XPEV"]
     spider.update_latest_batch(symbols=CRITICAL_STOCKS_US)
     strategy.update_latest(symbols=CRITICAL_STOCKS_US, days=3, update=False)
     dragon.run_report(days_delta(today_str(), -1))
+    for symbol in CRITICAL_STOCKS_US:
+        worker.backtest_daily(symbol)
 
 class Scheduler:
     def __init__(self):
         self.scheduler = BackgroundScheduler()
         self.dragon = Dragon()
         self.spider = YF_US_Spider()
+        self.worker = DynamicWorker()
         self.strategy = StrategyHelper(ModelScopeClinet(), QuantDB())
 
     def start(self, hour:int=9, minute:int=0):
@@ -52,7 +56,8 @@ class Scheduler:
                 "name":"Hour job for critical stocks", 
                 "spider": self.spider, 
                 "strategy": self.strategy,
-                "dragon": self.dragon
+                "dragon": self.dragon,
+                "worker": self.worker,
             }
         )
 
