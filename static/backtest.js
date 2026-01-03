@@ -52,18 +52,19 @@ function render_table(strategies){
         total_return = format_percent(strategy['total_return'])
         annual_return = format_percent(strategy['annual_return'])
         max_drawdown = format_percent(strategy['max_drawdown'])
-        pl_ratio = format_decimal(strategy['pl_ratio'], 2)
+        profit_loss_ratio = format_decimal(strategy['profit_loss_ratio'], 2)
         win_rate = format_percent(strategy['win_rate'])
         trade_win_rate = format_percent(strategy['trade_win_rate'])
-        sharpe = format_decimal(strategy['sharpe'], 2)
-        calmar = format_decimal(strategy['calmar'], 2)
+        sharpe_ratio = format_decimal(strategy['sharpe_ratio'], 2)
+        calmar_ratio = format_decimal(strategy['calmar_ratio'], 2)
         trade_count = strategy['trade_count']
+        current_position = strategy['current_position']
+        last_trade_pnl = format_percent(strategy['last_trade_pnl'])
         total_days = strategy['total_days']
         trade_days = strategy['trade_days']
         empty_days = strategy['empty_days']
         best_params = strategy['param_config']
-        //console.log(strategy)
-        html += `<tr><td>${i+1}</td><td>${name}</td><td>${total_return}</td><td>${annual_return}</td><td>${max_drawdown}</td><td>${pl_ratio}</td><td>${win_rate}</td><td>${trade_win_rate}</td><td>${sharpe}</td><td>${calmar}</td><td>${trade_count}</td><td>${total_days}/${trade_days}/${empty_days}</td><td>${best_params}</td><td>${start}-${end}</td></tr>`
+        html += `<tr><td>${i+1}</td><td>${name}</td><td>${total_return}</td><td>${annual_return}</td><td>${max_drawdown}</td><td>${profit_loss_ratio}</td><td>${win_rate}</td><td>${trade_win_rate}</td><td>${sharpe_ratio}</td><td>${calmar_ratio}</td><td>${trade_count}</td><td>${current_position}</td><td>${last_trade_pnl}</td><td>${total_days}/${trade_days}/${empty_days}</td><td>${best_params}</td><td>${start}-${end}</td></tr>`
     }
     render("strategy_summary", html)
 }

@@ -1,6 +1,9 @@
 import json
 import pandas as pd
-from typing import Tuple, Type, Dict, Any
+import numpy as np
+from typing import Tuple, Type, Dict, Any, Optional
+from datetime import datetime
+
 from db import QuantDB
 from utils.logger import logger
 from utils.time import today_str
@@ -9,25 +12,38 @@ from backtest.data_fetcher import DataFetcher
 from backtest.analyzer import Analyzer
 from backtest.engine import BacktestEngine
 from backtest.strategy_registry import StrategyRegistry
+from backtest.ensemble import EnsembleEngine
 
 class Worker:
-    def __init__(self, engine=None, n_jobs=-1):
+    def __init__(self, engine=None, 
+            n_jobs=-1,
+            target_risk_ratio=2,
+            max_leverage=1,
+            is_long_only=True):
         self.engine = engine or BacktestEngine()
         self.strategy_configs = []
         self.n_jobs = n_jobs
+        self.ensemble = EnsembleEngine(target_risk_ratio, max_leverage, is_long_only)
 
-    def append_strategy(self, strategy_config:Tuple[Type[BaseStrategy], Dict[str, Any]]):
-        strategy, param_config = strategy_config
-        param_config = param_config or {}
-        self.strategy_configs.append((strategy, param_config))
-        logger.info(f"append strategy:{strategy.__name__} {param_config}")
+    def append_strategy(self, strategy_config: Tuple[Type[BaseStrategy], Dict[str, Any]]):
+        strategy_cls, param_config = strategy_config
+        self.strategy_configs.append((strategy_cls, param_config or {}))
+        logger.info(f"✅ 已添加策略: {strategy_cls.__name__} | 参数网格数量: {len(param_config) if param_config else 0}")
 
-    def backtest(self, symbol:str, df: pd.DataFrame):
+    def backtest(self, symbol: str, df: pd.DataFrame) -> Tuple[Dict, Dict]:
+        """执行组合回测并生成融合报告"""
         final_results = {}
+        if not self.strategy_configs:
+            logger.warning("⚠️ 未配置任何策略，回测跳过")
+            return {}, {}
+
         for strategy_class, param_grid in self.strategy_configs:
+            logger.info(f"🚀 正在优化策略: {strategy_class.strategy_class}...")
+            # 假设 Analyzer.optimize_parameters 返回最佳参数、性能指标和权益曲线
             best_params, best_perf, best_equity = Analyzer.optimize_parameters(
                 strategy_class, df, param_grid, n_jobs=self.n_jobs
             )
+            
             final_results[strategy_class.strategy_class] = {
                 "symbol": symbol,
                 "strategy_name": strategy_class.strategy_name, 
@@ -36,7 +52,9 @@ class Worker:
                 "perf": best_perf,
                 "equity_df": best_equity
             }
-        return final_results
+
+        report = self.ensemble.action(final_results)
+        return final_results, report
 
 class DynamicWorker:
     def __init__(self, engine=None, n_jobs=-1):
@@ -44,66 +62,93 @@ class DynamicWorker:
         self.fetcher = DataFetcher()
         self.worker = Worker(engine or BacktestEngine(), n_jobs=n_jobs)
 
-    def register_strategies(self, df: pd.DataFrame):
+    def _safe_parse_json(self, raw_params: Any, class_name: str) -> Dict:
+        """安全解析参数配置，支持处理转义字符串"""
+        if isinstance(raw_params, dict):
+            return raw_params
+        if not isinstance(raw_params, str) or not raw_params.strip():
+            return {}
+        
+        try:
+            parsed = json.loads(raw_params)
+            if isinstance(parsed, str):
+                parsed = json.loads(parsed)
+            return parsed if isinstance(parsed, dict) else {}
+        except Exception as e:
+            logger.error(f"❌ 参数解析失败 [{class_name}]: {str(e)}")
+            return {}
+
+    def register_strategies(self):
+        df_pool = self.db.fetch_strategy_pool()
+        if df_pool is None or df_pool.empty:
+            logger.warning("🟡 策略池为空")
+            return
+
         self.worker.strategy_configs = [] 
-        for _, row in df.iterrows():
-            class_name = row['strategy_class']
-            raw_params = row['param_configs']
-            strategy_cls = StrategyRegistry.get_class(class_name)
+        for _, row in df_pool.iterrows():
+            class_key = row['strategy_class']
+            strategy_cls = StrategyRegistry.get_class(class_key)
+            
             if not strategy_cls:
-                logger.error(f"❌ 未能加载策略类: {class_name}")
+                logger.error(f"❌ 未知策略类，请检查 Registry: {class_key}")
                 continue
 
-            strategy_cls.strategy_name = row["strategy_name"]
-            target_params = {}
-            if isinstance(raw_params, dict):
-                target_params = raw_params
-            elif isinstance(raw_params, str):
-                raw_params = raw_params.strip()
-                try:
-                    target_params = json.loads(raw_params)
-                    if isinstance(target_params, str):
-                        target_params = json.loads(target_params)
-                except:
-                    logger.error(f"❌ 字符串解析失败 [{class_name}]: {e}")
-                    target_params = {}
-            else:
-                target_params = {}
-            if not isinstance(target_params, dict):
-                target_params = {}
-
-            self.worker.append_strategy((strategy_cls, target_params))
+            # 注入元数据
+            strategy_cls.strategy_name = row.get("strategy_name", class_key)
+            strategy_cls.strategy_class = class_key
             
-        logger.info(f"📊 成功加载 {len(self.worker.strategy_configs)} 个策略")
+            params = self._safe_parse_json(row.get('param_configs'), class_key)
+            self.worker.append_strategy((strategy_cls, params))
+            
+        logger.info(f"📊 动态加载完成，共计 {len(self.worker.strategy_configs)} 个有效策略")
 
-
-
-    def backtest(self, symbol: str, start_date: str, end_date: str):
-        """执行回测"""
-        logger.info(f"🔍 正在为 {symbol} 执行回测...")
+    def backtest(self, symbol: str, start_date: str, end_date: str) -> Tuple[Dict, Dict]:
+        """执行完整回测流程"""
         df_data = self.fetcher.fetch_llm_data(symbol, start_date, end_date)
         if df_data is None or df_data.empty:
-            logger.error("数据源为空，无法执行回测")
-            return {}
+            logger.error(f"❌ 品种 {symbol} 数据获取失败")
+            return {}, {}
             
-        self.register_strategies(self.db.fetch_strategy_pool()) 
+        self.register_strategies() 
         return self.worker.backtest(symbol, df_data)
 
-    def backtest_online(self, symbol: str, start_date: str, end_date: str):
-        """实时回测，不支持LLM类strategy"""
-        pass
+    def _serialize_for_db(self, obj: Any) -> Any:
+        """递归转换 Numpy 类型为原生 Python 类型，确保 JSON 可序列化"""
+        if isinstance(obj, dict):
+            return {k: self._serialize_for_db(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self._serialize_for_db(i) for i in obj]
+        elif isinstance(obj, (np.float64, np.float32)):
+            return float(obj)
+        elif isinstance(obj, (np.int64, np.int32)):
+            return int(obj)
+        return obj
 
+    def backtest_daily(self, symbol: str):
+        """例行任务：回测、融合并持久化至 SQLite"""
+        start_date = "2020-01-01" # 设定一个合理的起始点或根据需求动态获取
+        end_date = today_str()
         
-    def backtest_daily(self, symbol):
-        """天级例行任务，回测并入库"""
-        start, end = "1970-01-01", today_str()        
-        result = self.backtest(symbol, start, end).values()
+        try:
+            results, report = self.backtest(symbol, start_date, end_date)
 
-        if len(result) == 0:
-            logger.warning(f"🟡{symbol} backtest result is empty")
-        elif self.db.update_strategy_signal(result) > 0:
-            logger.info(f"💚{symbol} backtest finished")
-        else:
-            logger.info(f"⚠️ {symbol} backtest into db failed")
-         
+            if not results or not report:
+                logger.warning(f"🟡 {symbol} 回测结果为空，放弃入库")
+                return
 
+            # 处理数据类型安全 (防止 numpy 类型导致 json 序列化失败)
+            safe_report = self._serialize_for_db(report)
+            
+            # 1. 更新单策略信号 (用于底层明细查询)
+            # 2. 更新组合报告 (以 Symbol 为 Key 压缩存储)
+            # 假设 QuantDB 已经适配了 update_strategy_report(symbol, safe_report)
+            res_signal = self.db.update_strategy_signal(results)
+            res_report = self.db.update_strategy_report(symbol, safe_report)
+
+            if res_signal > 0 and res_report > 0:
+                logger.info(f"💚 {symbol} 每日例行任务成功入库 | 建议仓位: {report.get('suggested_position')}")
+            else:
+                logger.error(f"⚠️ {symbol} 入库失败 [Signal:{res_signal}, Report:{res_report}]")
+                
+        except Exception as e:
+            logger.exception(f"🔥 {symbol} 天级回测发生致命错误: {e}")

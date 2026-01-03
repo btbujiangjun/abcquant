@@ -70,9 +70,9 @@ async def tradesignal_page(request: Request):
     return templates.TemplateResponse("tradesignal.html", {"request": request, "page":"tradesignal", "title":"📊交易信号"})
 @app.get("/api/tradesignal/{symbol}")
 async def tradesignal(symbol:str):
-    result = db.fetch_strategy_signal(symbol)
-    print(result)
-    return result
+    signal = db.fetch_strategy_signal(symbol)
+    report = db.fetch_strategy_report(symbol)
+    return {"signal": signal, "report": report}
 
 @app.get("/api/dragon")
 async def get_dragon_data(date: str = None):
@@ -145,9 +145,9 @@ async def backtest(symbol:str, start:str, end:str):
     i, summary_table = 0, ""
 
     summary_data = []
-
-    results = worker.backtest(symbol, start, end)
-
+    results, report = worker.backtest(symbol, start, end)
+    print(results)
+    print(report)
     sorted_results = sorted(
         results.items(), 
         key=lambda item: item[1]["equity_df"]["equity"].iloc[-1], 

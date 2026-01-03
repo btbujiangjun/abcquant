@@ -27,11 +27,14 @@ def strategy_job(name:str, strategy, dragon):
 def hour_job(name:str, spider, strategy, dragon, worker):
     logger.info(f"⚠️  {name} 执行中... ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})")
     #CRITICAL_STOCKS_US = ["BTC-USD", "XPEV"]
+    """
     spider.update_latest_batch(symbols=CRITICAL_STOCKS_US)
     strategy.update_latest(symbols=CRITICAL_STOCKS_US, days=3, update=False)
     dragon.run_report(days_delta(today_str(), -1))
+    """
     for symbol in CRITICAL_STOCKS_US:
         worker.backtest_daily(symbol)
+    logger.info("hour_job finished")
 
 class Scheduler:
     def __init__(self):

@@ -42,7 +42,7 @@ class LongTermValueStrategy(BaseStrategy):
         df = self.data.copy()
         df['signal'] = 0
         df.at[df.index[0], "signal"] = 1
-        df.at[df.index[-1], "signal"] = -1
+        #df.at[df.index[-1], "signal"] = -1
         self.signals = df
         return df
 
