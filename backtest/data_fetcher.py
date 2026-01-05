@@ -30,12 +30,21 @@ class DataFetcher:
         df = df[self.fields]
         return df
 
-    def fetch_yahoo(self, symbol, start, end):
+    def fetch_yf(self, symbol, start, end):
         logger.info(f"Fetching {symbol} data from Yahoo Finance")
-        df = yf.download(symbol, start=start, end=end)
+        df = yf.download(symbol, start=start, end=end, auto_adjust=True, progress=False)
+        
+        if df.empty:
+            raise ValueError(f"No data returned from yfinance for {symbol}")    
+
+        if isinstance(df.columns, pd.MultiIndex):
+            tickers = df.columns.get_level_values(-1).unique()
+            if len(tickers) == 1:
+                df.columns = df.columns.droplevel(-1)
+
         df.reset_index(inplace=True)
         df.rename(columns={'Date':'date','Open':'open','High':'high','Low':'low','Close':'close','Volume':'volume'}, inplace=True)
-        return df
+        return df[self.fields]
 
     def fetch_csv(self, file_path):
         logger.info(f"Loading data from {file_path}")

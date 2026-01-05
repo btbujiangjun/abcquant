@@ -10,7 +10,10 @@ class BacktestEngine:
     def run_backtest(self, df, signal_col='signal'):
         cash, position, positions, equity_curve, ops = self.initial_cash, 0, [], [], []
         for _, row in df.iterrows():
-            signal, price, date = row[signal_col], float(row['close']), row['date'] 
+            signal = row[signal_col]
+            #signal = float(signal.iloc[0]) if hasattr(signal, "iloc") else float(signal)
+            price, date = float(row['close']), row['date'] 
+            
             if float(signal) == 1 and int(position) == 0:
                 buy_price = price * (1 + self.slippage)
                 position, cash = cash/buy_price, 0

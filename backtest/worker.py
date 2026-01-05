@@ -7,7 +7,8 @@ from datetime import datetime
 from db import QuantDB
 from utils.logger import logger
 from utils.time import today_str
-from backtest.strategy import BaseStrategy
+from config import CRITICAL_STOCKS_US
+from backtest.strategy import BaseStrategy, LLMStrategy
 from backtest.data_fetcher import DataFetcher
 from backtest.analyzer import Analyzer
 from backtest.engine import BacktestEngine
@@ -78,7 +79,7 @@ class DynamicWorker:
             logger.error(f"❌ 参数解析失败 [{class_name}]: {str(e)}")
             return {}
 
-    def register_strategies(self):
+    def register_strategies(self, not_llm=False):
         df_pool = self.db.fetch_strategy_pool()
         if df_pool is None or df_pool.empty:
             logger.warning("🟡 策略池为空")
@@ -93,6 +94,11 @@ class DynamicWorker:
                 logger.error(f"❌ 未知策略类，请检查 Registry: {class_key}")
                 continue
 
+            if not_llm and class_key != "BaseStrategy" and \
+                    (class_key == "LLMStrategy" or \
+                    strategy_cls.__base__.__name__ == "LLMStrategy"):
+                continue
+
             # 注入元数据
             strategy_cls.strategy_name = row.get("strategy_name", class_key)
             strategy_cls.strategy_class = class_key
@@ -102,15 +108,29 @@ class DynamicWorker:
             
         logger.info(f"📊 动态加载完成，共计 {len(self.worker.strategy_configs)} 个有效策略")
 
-    def backtest(self, symbol: str, start_date: str, end_date: str) -> Tuple[Dict, Dict]:
+    def _backtest(self, symbol: str, df_data: pd.DataFrame) -> Tuple[Dict, Dict]:
         """执行完整回测流程"""
-        df_data = self.fetcher.fetch_llm_data(symbol, start_date, end_date)
         if df_data is None or df_data.empty:
-            logger.error(f"❌ 品种 {symbol} 数据获取失败")
+            logger.error(f"❌ {symbol} 数据数据不能为空")
             return {}, {}
             
-        self.register_strategies() 
         return self.worker.backtest(symbol, df_data)
+
+    def backtest_llm_db(self, symbol: str, start_date: str, end_date: str) -> Tuple[Dict, Dict]:
+        df_data = self.fetcher.fetch_llm_data(symbol, start_date, end_date)
+        self.register_strategies() 
+        return self._backtest(symbol, df_data)
+
+    def backtest_online(self, symbol: str, start_date: str, end_date: str) -> Tuple[Dict, Dict]:
+        df_data = self.fetcher.fetch_yf(symbol, start_date, end_date)
+        self.register_strategies(not_llm=True) 
+        return self._backtest(symbol, df_data)
+
+    def backtest(self, symbol: str, start_date: str, end_date: str) -> Tuple[Dict, Dict]:
+        if symbol in CRITICAL_STOCKS_US:
+            return self.backtest_llm_db(symbol, start_date, end_date)
+        else:
+            return self.backtest_online(symbol, start_date, end_date)
 
     def _serialize_for_db(self, obj: Any) -> Any:
         """递归转换 Numpy 类型为原生 Python 类型，确保 JSON 可序列化"""
@@ -128,7 +148,7 @@ class DynamicWorker:
 
     def backtest_daily(self, symbol: str):
         """例行任务：回测、融合并持久化至 SQLite"""
-        start_date = "2020-01-01" # 设定一个合理的起始点或根据需求动态获取
+        start_date = "2020-01-01"
         end_date = today_str()
         
         try:

@@ -118,12 +118,31 @@ class BollingerStrategy(BaseStrategy):
         self.signals = df
         return df
 
-class VolatilityLLMStrategy(BaseStrategy):
+class LLMStrategy(BaseStrategy):
+    """基于大模型评分的策略"""
+    strategy_class = "LLMStrategy"
+
+    def __init__(self, data, buy_score=0.7, sell_score=0.0): 
+        super().__init__(data)
+        if "score" not in data.columns:
+            raise KeyError("`score` field is required")
+        self.buy_score = buy_score
+        self.sell_score = sell_score
+
+    def generate_signals(self):
+        df = self.data.copy()
+        df['signal'] = np.where(df['score'] >= self.buy_score, 1, 
+                       np.where(df['score'] <= self.sell_score, -1, 0))
+        
+        self.signals = df
+        return df
+
+class VolatilityLLMStrategy(LLMStrategy):
     """波动率保护型 LLM 策略"""
     strategy_class = "VolLLMStrategy"
 
     def __init__(self, data, buy_score=0.7, sell_score=0.0, period=10, vol_threshold=0.03):
-        super().__init__(data)
+        super().__init__(data, buy_score, sell_score)
         self.buy_score = buy_score
         self.sell_score = sell_score
         self.period = period
@@ -198,12 +217,12 @@ class VolumePriceStrategy(BaseStrategy):
         self.signals = df
         return df
 
-class TripleBarrierLLMStrategy(BaseStrategy):
+class TripleBarrierLLMStrategy(LLMStrategy):
     """三重屏障 LLM：只在牛市且非超买状态下执行"""
     strategy_class = "TripleBarrierLLMStrategy"
 
     def __init__(self, data, buy_score=0.8, sell_score=0.0, rsi_period=14, ma_period=200, rsi_limit=70):
-        super().__init__(data)
+        super().__init__(data, buy_score, sell_score)
         self.buy_score = buy_score
         self.sell_score = sell_score
         self.ma_period = ma_period
@@ -249,7 +268,7 @@ class AdaptiveVolStrategy(BaseStrategy):
         self.signals = df
         return df
 
-class ATRStopLLMStrategy(BaseStrategy):
+class ATRStopLLMStrategy(LLMStrategy):
     """
     核心逻辑：
     - 入场：score >= buy_score
@@ -259,7 +278,7 @@ class ATRStopLLMStrategy(BaseStrategy):
     strategy_class = "ATRStopLLMStrategy"
 
     def __init__(self, data, buy_score=0.8, sell_score=0.2, period=14, atr_multiplier=2.5):
-        super().__init__(data)
+        super().__init__(data, buy_score, sell_score)
         self.buy_score = buy_score
         self.sell_score = sell_score
         self.period = period
@@ -302,25 +321,6 @@ class ATRStopLLMStrategy(BaseStrategy):
 
         df['signal'] = signals
         df['stop_line'] = stop_prices
-        self.signals = df
-        return df
-
-class LLMStrategy(BaseStrategy):
-    """基于大模型评分的策略"""
-    strategy_class = "LLMStrategy"
-
-    def __init__(self, data, buy_score=0.7, sell_score=0.0): 
-        super().__init__(data)
-        if "score" not in data.columns:
-            raise KeyError("`score` field is required")
-        self.buy_score = buy_score
-        self.sell_score = sell_score
-
-    def generate_signals(self):
-        df = self.data.copy()
-        df['signal'] = np.where(df['score'] >= self.buy_score, 1, 
-                       np.where(df['score'] <= self.sell_score, -1, 0))
-        
         self.signals = df
         return df
 
