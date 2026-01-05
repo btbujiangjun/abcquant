@@ -1,4 +1,5 @@
 import json
+import numpy as np
 import pandas as pd
 from fastapi import Request, Form, FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -139,15 +140,16 @@ async def get_report(date:str = None, interval:int = 30):
 
 
 @app.get("/backtest/{symbol}")
-async def backtest(symbol:str, start:str, end:str):
+async def backtest(symbol:str, start:str, end:str, online:str="ai"):
     json_obj = {}
     json_obj["symbol"] = symbol
     i, summary_table = 0, ""
 
     summary_data = []
-    results, report = worker.backtest(symbol, start, end)
-    print(results)
-    print(report)
+    if online == "online":
+        results, report = worker.backtest_online(symbol, start, end)
+    else:
+        results, report = worker.backtest(symbol, start, end)
     sorted_results = sorted(
         results.items(), 
         key=lambda item: item[1]["equity_df"]["equity"].iloc[-1], 
@@ -178,7 +180,7 @@ async def backtest(symbol:str, start:str, end:str):
         metrics["start_date"], metrics["end_date"] = df.iloc[0]['date'], df.iloc[-1]['date']
         summary_data.append(metrics)
     json_obj["summary_data"] = sorted(summary_data, key=lambda x: x['total_return'], reverse=True)
-    return json.dumps(json_obj, ensure_ascii=False)
+    return json.dumps(to_jsonable(json_obj), ensure_ascii=False)
 
 # ===================
 # 后端接口
@@ -246,6 +248,8 @@ def safe_get(row, key, default=None):
 
 def to_jsonable(obj):
     """递归将 numpy 类型转换为原生 python 类型"""
+    if isinstance(obj, pd.Timestamp):
+        return obj.strftime('%Y-%m-%d')
     if isinstance(obj, dict):
         return {k: to_jsonable(v) for k, v in obj.items()}
     elif isinstance(obj, (list, tuple)):

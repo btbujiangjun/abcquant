@@ -29,7 +29,7 @@ async function loadStocks(symbol){
     }
 }
 
-async function searchBacktest(symbol=null){
+async function doBacktest(symbol=null){
     let sym=symbol||document.getElementById('stockSearch').value.trim()||document.getElementById('stockSelector').value;
     sym=sym.toUpperCase();
     if(!sym){alert('请输入或选择股票代码'); return;} currentSymbol=sym;
@@ -98,12 +98,21 @@ const CHART_THEME = {
 };
 
 async function updateBacktest(symbol) {
-    myChart.showLoading({text: '正在计算回测收益...', color: CHART_THEME.strategies[0]});
+    myChart.showLoading({
+        text: `正在计算${symbol}的回测收益...`, 
+        color: CHART_THEME.strategies[0],
+        textStyle: {
+            fontSize: 20,
+            fontWeight: 'bold',
+        },
+        maskColor: 'rgba(255, 255, 255, 0.6)',
+    });
 
     try{
         const start = document.getElementById("startDate").value;
         const end = document.getElementById("endDate").value;
-        const response = await fetch(`/backtest/${symbol}?start=${start}&end=${end}`);
+        const mode = document.getElementById('routing').value;
+        const response = await fetch(`/backtest/${symbol}?start=${start}&end=${end}&mode=${mode}`);
         if (!response.ok) throw new Error("请求失败");
         let res = await response.json();
         if (typeof res === 'string') { res = JSON.parse(res);}
