@@ -160,9 +160,9 @@ function render_strategy_score(tableBodyId, data_items, summary) {
         const confidence_factor = summary.confidence_factor.toFixed(2)
         const kelly_f = summary.kelly_f.toFixed(2)
         const target_risk_ratio = summary.target_risk_ratio.toFixed(2)
-        const raw_pos_size = summary.raw_pos_size.toFixed(1)
-        const suggested_pos = ((summary.raw_pos_size || 0 ) * 100).toFixed(1)
-        const current_pos = ((summary.current_pos || 0) * 100).toFixed(2)
+        const raw_pos_size = ((summary.raw_pos_size || 0) * 100).toFixed(1)
+        const suggested_pos = ((summary.suggested_pos || 0 ) * 100).toFixed(1)
+        const current_pos = ((summary.current_pos || 0) * 100).toFixed(1)
         const exec_status = summary.exec_status
         html += `
           <td rowspan='${rows}'>${avg_p}</td>
@@ -173,7 +173,7 @@ function render_strategy_score(tableBodyId, data_items, summary) {
           <td rowspan='${rows}'>${confidence_factor}</td>
           <td rowspan='${rows}'>${kelly_f}</td>
           <td rowspan='${rows}'>${target_risk_ratio}</td>
-          <td rowspan='${rows}'>${raw_pos_size}</td>
+          <td rowspan='${rows}'>${raw_pos_size}%</td>
           <td rowspan='${rows}'>${suggested_pos}%</td>
           <td rowspan='${rows}'>${current_pos}%</td>
           <td rowspan='${rows}'>${exec_status}</td>
