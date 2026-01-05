@@ -107,7 +107,7 @@ function drawKellyGauge(value) {
     ctx.restore();
 }
 
-function render_strategy_score(tableBodyId, data_items) {
+function render_strategy_score(tableBodyId, data_items, summary) {
   const tbody = document.getElementById(tableBodyId);
   tbody.innerHTML = ""; 
   if (!data_items || data_items.length === 0) {
@@ -116,46 +116,83 @@ function render_strategy_score(tableBodyId, data_items) {
   }
 
   const items = Object.entries(data_items)
-    .sort((a, b) => b[1].weight - a[1].weight) // 按权重从高到低排序
+    .sort((a, b) => b[1].annual_return - a[1].annual_return) // 按权重从高到低排序
   items.forEach(([name, data], index) => {
     const tr = document.createElement("tr");
-    const weightPct = (data.weight * 100).toFixed(1) + '%';
-    const org_score = data.weight.toFixed(2)
-    tr.innerHTML = ` 
+    name = data[0]
+    data = data[1]
+    console.log(data)
+    const weight = ((data.weight || 0) * 100).toFixed(1);
+    const annual_return = ((data.annual_return || 0) * 100).toFixed(2)
+    const win_adj = ((data.win_adj || 0) * 100).toFixed(2)
+    const reliability = data.reliability.toFixed(2)
+    const alpha = data.alpha.toFixed(2)
+    const calmar_ratio = data.calmar_ratio.toFixed(2)
+    const risk = data.risk.toFixed(2)
+    const recent_std = data.recent_std.toFixed(2)
+    const pnl = ((data.pnl || 0) * 100).toFixed(2)
+    const state = data.state.toFixed(2)
+    const penalty = data.penalty.toFixed(2)
+    const vol = data.vol.toFixed(2)
+    html = ` 
       <td>${index + 1}</td>
-      <td>${name}</td>
-      <td>${weightPct}</td>
-      <td>${org_score}</td>
+      <td>${name.replace(/Strategy/g, '')}</td>
+      <td>${weight}%</td>
+      <td>${annual_return}%</td>
+      <td>${win_adj}%</td>
+      <td>${reliability}</td>
+      <td>${alpha}</td>
+      <td>${calmar_ratio}</td>
+      <td>${risk}</td>
+      <td>${recent_std}</td>
+      <td>${pnl}%</td>
+      <td>${state}</td>
+      <td>${penalty}</td>
+      <td>${vol}</td>
     `;
+    if(index == 0){
+        const rows = items.length
+        const avg_p = summary.avg_p.toFixed(2)
+        const avg_b = summary.avg_b.toFixed(2)
+        const kelly_f_orig = summary.kelly_f_orig.toFixed(2)
+        const diversity_score = summary.diversity_score.toFixed(2)
+        const ensemble_signal = summary.ensemble_signal.toFixed(2)
+        const confidence_factor = summary.confidence_factor.toFixed(2)
+        const kelly_f = summary.kelly_f.toFixed(2)
+        const target_risk_ratio = summary.target_risk_ratio.toFixed(2)
+        const raw_pos_size = summary.raw_pos_size.toFixed(1)
+        const suggested_pos = ((summary.raw_pos_size || 0 ) * 100).toFixed(1)
+        const current_pos = ((summary.current_pos || 0) * 100).toFixed(2)
+        const exec_status = summary.exec_status
+        html += `
+          <td rowspan='${rows}'>${avg_p}</td>
+          <td rowspan='${rows}'>${avg_b}</td>
+          <td rowspan='${rows}'>${kelly_f_orig}</td>
+          <td rowspan='${rows}'>${diversity_score}</td>
+          <td rowspan='${rows}'>${ensemble_signal}</td>
+          <td rowspan='${rows}'>${confidence_factor}</td>
+          <td rowspan='${rows}'>${kelly_f}</td>
+          <td rowspan='${rows}'>${target_risk_ratio}</td>
+          <td rowspan='${rows}'>${raw_pos_size}</td>
+          <td rowspan='${rows}'>${suggested_pos}%</td>
+          <td rowspan='${rows}'>${current_pos}%</td>
+          <td rowspan='${rows}'>${exec_status}</td>
+        `;
+    }
+    tr.innerHTML = html 
     tbody.appendChild(tr);
   }); 
 }
 
-function render_score_analysis(tableBodyId, data_items) {
-  const tbody = document.getElementById(tableBodyId);
-  tbody.innerHTML = "";
-  if (!data_items || data_items.length === 0) {
-    tbody.innerHTML = `<tr><td>暂无数据</td></tr>`;
-    return;
-  }
-
-  data_items.forEach((data, index) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = ` 
-      <td style="text-align: left;">${data}</td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
 function renderReport(symbol, report){
+    $('#kellySymbol').html(`<a href="/?symbol=${symbol}">${symbol}</a>`)
     $('#kellyOps').text(report.signal);
     $('#kellyPos').text((report.suggested_position * 100).toFixed(1) + "%");
     $('#kellyScore').text(report.signal_score.toFixed(2));
     $('#kellyConfience').text(report.confidence_score);
     const opsEl = $('#kellyOps');
     const posEl = $('#kellyPos');
-    if (opsEl.text() === 'BUY' || opsEl.text() === 'HOLD') {
+    if (opsEl.text() === 'BUY' || opsEl.text() === 'STRONG_BUY') {
         opsEl.addClass('text-buy').removeClass('text-sell');
         posEl.addClass('text-buy').removeClass('text-sell');
     } else {
@@ -164,12 +201,14 @@ function renderReport(symbol, report){
     }
 
     const td = document.getElementById('dynamic_risk_management');   
-    td.innerHTML = report.dynamic_risk_management.join('</br>') || ""
- 
+    td.innerHTML = [...report.dynamic_risk_management,...report.contribution_analysis].join('</br>') || ""
     $('#kellyAction').text(report.action_guide);
+    $('#kellyInterpretation').text(report.logic_interpretation);
     drawKellyGauge(report.suggested_position);
-    render_strategy_score('strategy_score', report.strategy_weights)
-    render_score_analysis('strategy_analysis', report.contribution_analysis)
+
+    console.log(report.trace_items)
+    console.log(report.trace_summary)
+    render_strategy_score('strategy_score', report.trace_items, report.trace_summary)
 }
 
 function renderStat(label, value) {
@@ -196,16 +235,13 @@ function updateTableHeader(strategies) {
     const $header = $('#headerRow');
     const $stats  = $('#statsRow');
 
-    $header.find('th:gt(0)').remove();
+    $header.find('th:gt(1)').remove();
     $stats.empty();
 
     strategies.forEach(s => {
         const perf = s.perf || {};
 
-        // ===== 表头 =====
-        $header.append(
-            '<th>' + s.strategy_class.replace(/_/g, ' ') + '</th>'
-        );
+        $header.append('<th>' + s.strategy_class.replace(/Strategy/g, '') + '</th>');
 
         const totalDays  = perf.total_days || 0;
         const tradeDays  = perf.trade_days || 0;
@@ -218,9 +254,9 @@ function updateTableHeader(strategies) {
         const html = [
             '<th class="stats-th">',
 
-            renderStat('总收益',     fmt(perf.total_return, true)),
+            renderStat('总收益',     fmt(perf.total_return, false)),
             renderStat('年化收益',   fmt(perf.annual_return, true)),
-            renderStat('最大回撤',   fmt(perf.max_drawdown, true)),
+            renderStat('最大回撤',   fmt(perf.max_drawdown, false)),
             renderStat('盈亏比',     fmt(perf.profit_loss_ratio, false)),
             renderStat('夏普比率',   fmt(perf.sharpe_ratio, false)),
             renderStat('卡玛比率',   fmt(perf.calmar_ratio, false)),
@@ -259,11 +295,10 @@ async function loadData(symbol=null) {
         const result = await response.json(); 
         rawStrategies = result["signal"]
         report = result["report"]
+        console.log(report)
+
         renderReport(symbol, result["report"])
         rawStrategies.sort((a, b) => (b.perf.annual_return || 0) - (a.perf.annual_return || 0));
-
-        console.log(report)
-
         const strategyNames = rawStrategies.map(s => s.strategy_name);
         CONFIG.strategies = strategyNames;
         updateTableHeader(rawStrategies);
@@ -275,7 +310,7 @@ async function loadData(symbol=null) {
                 const rawDate = item.date;
                 const date = typeof rawDate === 'string' ? rawDate.split('T')[0] : rawDate;
                 if (!matrixMap[date]) {
-                    matrixMap[date] = { date: date, signals: {} };
+                    matrixMap[date] = { date: date, price: item.close.toFixed(2), signals: {} };
                 }
                 const signal = item.signal == 1 ? "BUY" : (item.signal == -1 ? "SELL" : "HOLD");
                 matrixMap[date].signals[name] = signal || "HOLD";
@@ -298,7 +333,7 @@ async function loadData(symbol=null) {
 function renderMatrix() {
     let html = "";
     currentDataStore.forEach((row, rowIndex) => {
-        html += `<tr><td class="sticky-date">${row.date}</td>`;
+        html += `<tr><td class="sticky-date">${row.date}</td><td>${row.price}</td>`;
         CONFIG.strategies.forEach((stratName) => {
             const sig = row.signals[stratName] || "HOLD";
             let streak = calculateStreak(sig, rowIndex, stratName);

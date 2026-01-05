@@ -118,9 +118,11 @@ class DynamicWorker:
             return {k: self._serialize_for_db(v) for k, v in obj.items()}
         elif isinstance(obj, list):
             return [self._serialize_for_db(i) for i in obj]
-        elif isinstance(obj, (np.float64, np.float32)):
+        elif isinstance(obj, (np.float64, np.float32, float)):
+            if np.isnan(obj) or np.isinf(obj):
+                return 0.0
             return float(obj)
-        elif isinstance(obj, (np.int64, np.int32)):
+        elif isinstance(obj, (np.int64, np.int32, int)):
             return int(obj)
         return obj
 
@@ -139,9 +141,6 @@ class DynamicWorker:
             # 处理数据类型安全 (防止 numpy 类型导致 json 序列化失败)
             safe_report = self._serialize_for_db(report)
             
-            # 1. 更新单策略信号 (用于底层明细查询)
-            # 2. 更新组合报告 (以 Symbol 为 Key 压缩存储)
-            # 假设 QuantDB 已经适配了 update_strategy_report(symbol, safe_report)
             res_signal = self.db.update_strategy_signal(results)
             res_report = self.db.update_strategy_report(symbol, safe_report)
 

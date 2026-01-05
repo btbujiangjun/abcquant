@@ -32,8 +32,10 @@ def hour_job(name:str, spider, strategy, dragon, worker):
     strategy.update_latest(symbols=CRITICAL_STOCKS_US, days=3, update=False)
     dragon.run_report(days_delta(today_str(), -1))
     """
+    #worker.backtest_daily("GOOG")
     for symbol in CRITICAL_STOCKS_US:
         worker.backtest_daily(symbol)
+
     logger.info("hour_job finished")
 
 class Scheduler:

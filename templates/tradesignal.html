@@ -4,11 +4,9 @@
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <link rel="stylesheet" href="/static/tradesignal.css">
 <style>
-
 :root {
   --accent: #38bdf8; --buy-color: #22c55e;
 }
-
 #matrixBody td {
     padding: 2px 2px;
     text-align: center;
@@ -27,29 +25,7 @@
     white-space: nowrap;
     background: #fff;
 }
-
-
-
-h3 { margin-top: 0; border-bottom: 1px solid #334155; padding-bottom: 10px; font-    size: 16px; color: var(--accent); }
-.summary-container {
-    display: flex;
-    flex-direction: row;
-    gap: 20px;
-    padding: 5px;
-    background-color: #f5f5f5;
-    min-height: 200px;
-}
-
-.summary_bar {
-    flex: 1;
-    background-color: #ffffff;
-    color: #333;
-    padding: 5px;
-    border-radius: 3px;
-    border: 1px solid #ddd;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
+h3 { margin-top: 0; border-bottom: 1px solid #334155; padding-bottom: 10px; font-size: 16px; color: var(--accent); }
 @media (max-width: 600px) {
     .summary-container {
       flex-direction: column;
@@ -62,11 +38,16 @@ h3 { margin-top: 0; border-bottom: 1px solid #334155; padding-bottom: 10px; font
 .pos-value.text-pos {color: var(--buy-color);}
 .pos-value.text-neg {color: #dc2626;}
 
-/* 三列布局 */
+.matrix-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
 .section-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(31%, 1fr));
-    gap: 10px; /* 缩小间距使整体更紧凑 */
+    grid-template-columns: repeat(auto-fill, minmax(48%, 1fr));
+    gap: 10px;
     margin-bottom: 5px;
 }
 .section {
@@ -74,6 +55,8 @@ h3 { margin-top: 0; border-bottom: 1px solid #334155; padding-bottom: 10px; font
     border-radius: 6px; /* 略微减小圆角更显干练 */
     box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     padding: 6px; /* 压缩内边距 */
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 /* 针对手机端自动降级为单列 */
 @media (max-width: 768px) {
@@ -81,8 +64,6 @@ h3 { margin-top: 0; border-bottom: 1px solid #334155; padding-bottom: 10px; font
         grid-template-columns: 1fr;
     }
 }
-
-
 /* 核心容器：水平并排 */
 .pos-header-grid {
     display: flex;
@@ -93,14 +74,12 @@ h3 { margin-top: 0; border-bottom: 1px solid #334155; padding-bottom: 10px; font
     border-radius: 8px;
     margin-bottom: 10px;
 }
-
 /* 垂直分割线 */
 .pos-divider {
     width: 1px;
     height: 60px;
     background: #e2e8f0;
 }
-
 /* 核心块布局 */
 .pos-block {
     flex: 1;
@@ -115,8 +94,8 @@ h3 { margin-top: 0; border-bottom: 1px solid #334155; padding-bottom: 10px; font
 }
 
 /* 大尺寸数值 */
-.pos-val-ops { font-size: 36px; font-weight: 900; line-height: 1; }
-.pos-val-num { font-size: 38px; font-weight: 800; line-height: 1; }
+.pos-val-ops { font-size: 28px; font-weight: 900; line-height: 1; }
+.pos-val-num { font-size: 32px; font-weight: 800; line-height: 1; }
 
 /* 弱化后的底部数据栏 */
 .pos-footer-metrics {
@@ -125,16 +104,36 @@ h3 { margin-top: 0; border-bottom: 1px solid #334155; padding-bottom: 10px; font
     gap: 15px;
     padding: 10px 0;
     border-top: 1px dashed #e2e8f0;
-    font-size: 12px;
+    font-size: 14px;
     color: #94a3b8;
 }
+#gaugeCanvas {
+    display: block;   /* 必须转为块级 */
+    margin: 0 auto;  /* 水平居中 */
+}
+.pos-footer-metrics b { color: #4f46e5; }
 
-.pos-footer-metrics b { color: #475569; }
+.pos-status-hint {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    padding: 10px 0;
+    border-top: 1px dashed #e2e8f0;
+    font-size: 14px;
+    color: #0f172a;
+}
 
-/* 颜色类 */
 .text-buy { color: #22c55e; }
 .text-sell { color: #dc2626; }
-
+a {
+    color: #111827;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+a:hover {
+    color: var(--accent);
+    text-decoration: none;
+}
 </style>
 <h1>🐲<span class="gradient-h1-title">交易信号</span>🐯</h1>
 <div class="toolbar">
@@ -146,15 +145,17 @@ h3 { margin-top: 0; border-bottom: 1px solid #334155; padding-bottom: 10px; font
 <div class="section-grid">
 <div class="section">
   <div class="section-header"><h3><span class="gradient-title">实时头寸建议</span></h3></div>
-  <table><tbody><tr><td>
     <div class="pos-header-grid">
+        <div class="pos-block">
+            <div class="pos-label">股票代码</div>
+            <div id="kellySymbol" class="pos-val-ops text-buy">NEUTRAL</div>
+        </div>
+        <div class="pos-divider"></div>
         <div class="pos-block">
             <div class="pos-label">操作建议</div>
             <div id="kellyOps" class="pos-val-ops text-buy">NEUTRAL</div>
         </div>
-        
         <div class="pos-divider"></div>
-        
         <div class="pos-block">
             <div class="pos-label">建议仓位</div>
             <div id="kellyPos" class="pos-val-num text-sell">0.0%</div>
@@ -166,27 +167,43 @@ h3 { margin-top: 0; border-bottom: 1px solid #334155; padding-bottom: 10px; font
       <span>置信度: <b id="kellyConfience">6.86%</b></span>
     </div>
     <div id="kellyAction" class="pos-status-hint">状态：分歧期。建议观望。</div>
-      <canvas id="gaugeCanvas" width="260" height="120" style="opacity: 0.8;"></canvas>
-    </div>
-    <div id="dynamic_risk_management"></div>
-    </td></tr></tbody></table>
+    <canvas id="gaugeCanvas" width="260" height="120" style="opacity: 0.8;"></canvas>
+    <div id="kellyInterpretation" class="pos-status-hint">提示：系统运行正常，仓位与信号强度匹配</div>
+    <div id="dynamic_risk_management" class="pos-footer-metrics"></div>
   </div>
     
   <div class="section">
-    <div class="section-header">
-      <h3><span class="gradient-title">策略打分</span></h3>      
-    </div>
+    <div class="section-header"><h3><span class="gradient-title">策略打分</span></h3></div>
     <table>
-      <thead><tr><th>序号</th><th>策略名</th><th>权重占比</th><th>原始打分</th></tr></thead>
-      <tbody id="strategy_score"><tr><td colspan="3">暂无数据</td></tr></tbody>
-    </table>
-  </div>
-  <div class="section">
-    <div class="section-header">
-      <h3><span class="gradient-title">权重跟踪</span></h3>
-    </div>
-    <table>
-      <tbody id="strategy_analysis"><tr><td></td></tr></tbody>
+      <thead><tr>
+        <th>序号</th>
+        <th>策略</th>
+        <th>权重</th>
+        <th>年化</th>
+        <th>调权笔胜率</th>
+        <th>交易置信度</th>
+        <th>alpha</th>
+        <th>卡玛</th>
+        <th>risk</th>
+        <th>获利方差</th>
+        <th>最近获利</th>
+        <th>实时损益</th>
+        <th>相关性稀释</th>
+        <th>收益波动率</th>
+        <th>加权期望胜率</th>
+        <th>加权期望盈亏比</th>
+        <th>原始凯利</th>
+        <th>多样性</th>
+        <th>融合信号</th>
+        <th>信号置信度</th>
+        <th>增强凯利</th>
+        <th>风险系数</th>
+        <th>凯利仓位</th>
+        <th>保护仓位</th>
+        <th>当前仓位</th>
+        <th>操作</th>
+      </tr></thead>
+      <tbody id="strategy_score"><tr><td colspan="26">暂无数据</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -194,7 +211,7 @@ h3 { margin-top: 0; border-bottom: 1px solid #334155; padding-bottom: 10px; font
   <div class="matrix-wrapper">
     <table id="matrixTable">
       <thead>
-        <tr id="headerRow"><th rowspan="2" class="sticky-date">交易日期</th></tr>
+        <tr id="headerRow"><th rowspan="2" class="sticky-date">交易日期</th><th rowspan="2" class="sticky-date">价格</th></tr>
         <tr id="statsRow"></tr>
       </thead>
       <tbody id="matrixBody"></tbody>
