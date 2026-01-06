@@ -36,7 +36,6 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # ===================
 @app.get("/", response_class=HTMLResponse)
 def get_index(request: Request):
-    """返回前端页面"""
     return templates.TemplateResponse("stock.html", {"request": request, "page":"stock", "title":"💹股票分析 - LLM K线系"})
 
 @app.get("/dragon")
@@ -180,6 +179,7 @@ async def backtest(symbol:str, start:str, end:str, online:str="ai"):
         metrics["start_date"], metrics["end_date"] = df.iloc[0]['date'], df.iloc[-1]['date']
         summary_data.append(metrics)
     json_obj["summary_data"] = sorted(summary_data, key=lambda x: x['total_return'], reverse=True)
+    json_obj["report"] = report
     return json.dumps(to_jsonable(json_obj), ensure_ascii=False)
 
 # ===================
@@ -187,7 +187,6 @@ async def backtest(symbol:str, start:str, end:str, online:str="ai"):
 # ===================
 @app.get("/stocks")
 def get_critical_stocks():
-    """获取股票列表"""
     return [{"symbol": symbol, "name": symbol} for symbol in CRITICAL_STOCKS_US]
 
 @app.get("/klines/{symbol}")

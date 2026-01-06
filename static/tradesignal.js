@@ -121,7 +121,6 @@ function render_strategy_score(tableBodyId, data_items, summary) {
     const tr = document.createElement("tr");
     name = data[0]
     data = data[1]
-    console.log(data)
     const weight = ((data.weight || 0) * 100).toFixed(1);
     const annual_return = ((data.annual_return || 0) * 100).toFixed(2)
     const win_adj = ((data.win_adj || 0) * 100).toFixed(2)
@@ -205,9 +204,6 @@ function renderReport(symbol, report){
     $('#kellyAction').text(report.action_guide);
     $('#kellyInterpretation').text(report.logic_interpretation);
     drawKellyGauge(report.suggested_position);
-
-    console.log(report.trace_items)
-    console.log(report.trace_summary)
     render_strategy_score('strategy_score', report.trace_items, report.trace_summary)
 }
 
@@ -294,9 +290,6 @@ async function loadData(symbol=null) {
         const response = await fetch(`/api/tradesignal/${symbol}`);
         const result = await response.json(); 
         rawStrategies = result["signal"]
-        report = result["report"]
-        console.log(report)
-
         renderReport(symbol, result["report"])
         rawStrategies.sort((a, b) => (b.perf.annual_return || 0) - (a.perf.annual_return || 0));
         const strategyNames = rawStrategies.map(s => s.strategy_name);

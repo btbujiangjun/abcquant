@@ -36,6 +36,26 @@ async function doBacktest(symbol=null){
     await updateBacktest(sym);
 }
 
+function renderReport(symbol, report){
+    $('#kellySymbol').html(`<a href="/?symbol=${symbol}">${symbol}</a>`)
+    $('#kellyOps').text(report.signal);
+    $('#kellyPos').text((report.suggested_position * 100).toFixed(1) + "%");
+    $('#kellyScore').text(report.signal_score.toFixed(2));
+    $('#kellyConfience').text(report.confidence_score);
+    const opsEl = $('#kellyOps');
+    const posEl = $('#kellyPos');
+    if (opsEl.text() === 'BUY' || opsEl.text() === 'STRONG_BUY') {
+        opsEl.addClass('text-buy').removeClass('text-sell');
+        posEl.addClass('text-buy').removeClass('text-sell');
+    } else {
+        opsEl.addClass('text-sell').removeClass('text-buy');
+        posEl.addClass('text-sell').removeClass('text-buy');
+    }
+    
+    $('#kellyInterpretation').html(report.action_guide +'<br>'+ report.logic_interpretation);
+    UI.drawKellyGauge("gaugeCanvas", report.suggested_position);
+}
+
 function render(tableBodyId, data) {
     const tbody = document.getElementById(tableBodyId);
     tbody.innerHTML = data;
@@ -115,8 +135,11 @@ async function updateBacktest(symbol) {
         const response = await fetch(`/backtest/${symbol}?start=${start}&end=${end}&mode=${mode}`);
         if (!response.ok) throw new Error("请求失败");
         let res = await response.json();
+        console.log(res)
         if (typeof res === 'string') { res = JSON.parse(res);}
         const actualDates = res.dates;
+        renderReport(symbol, res.report)
+
         const strategies = res.strategies || [];
         const seriesList = [];
         

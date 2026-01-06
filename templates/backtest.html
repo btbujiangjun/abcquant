@@ -1,20 +1,90 @@
 {% extends "base.html" %}
 {% block content %}
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="static/ui.js"></script>
 <style>
-  #backtest-container { width: 99%; height: 600px; margin-top: 20px; }
-  .section {background: white;border-radius: 8px;box-shadow: 0 4px 10px rgba(0,0,0,0.08);padding: 10px;}
-  .section-grid {display: grid;grid-template-columns: repeat(auto-fill, minmax(98%, 1fr));gap: 24px;}
-  table {width: 100%;border-collapse: collapse;margin-bottom: 10px;font-size: 14px;}
-  th, td {padding: 8px 10px;border: 1px solid #ddd;text-align: center;}
-  th {background-color: #f8f8f8;}
-  tbody tr:hover {background-color: #f9f9f9;}
-  h1 {
+#backtest-container { width: 99%; height: 600px; margin-top: 20px; }
+.section {background: white;border-radius: 8px;box-shadow: 0 4px 10px rgba(0,0,0,0.08);padding: 6px;}
+.section-grid {display: grid;grid-template-columns: repeat(auto-fill, minmax(98%, 1fr));gap: 12px;}
+.section-header {display: flex;justify-content: space-between;align-items: center;margin-bottom: 2px;}
+table {width: 100%;border-collapse: collapse;margin-bottom: 10px;font-size: 14px;}
+th, td {padding: 8px 10px;border: 1px solid #ddd;text-align: center;}
+th {background-color: #f8f8f8;}
+tbody tr:hover {background-color: #f9f9f9;}
+h1 {
     text-align: left;
     margin-top: 20px;
     margin-bottom: 30px;
     width: 100%;
 }
+/* 核心容器：水平并排 */
+.pos-header-grid {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 2px 2px;
+    background: linear-gradient(to bottom, #ffffff, #f8fafc);
+    border-radius: 4px;
+    margin-bottom: 2px;
+}
+/* 垂直分割线 */
+.pos-divider {
+    width: 1px;
+    height: 60px;
+    background: #e2e8f0;
+}
+/* 核心块布局 */
+.pos-block {
+    flex: 1;
+    text-align: center;
+}
+.pos-label {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 2px;
+    font-weight: 500;
+}
+
+/* 大尺寸数值 */
+.pos-val-ops { font-size: 28px; font-weight: 900; line-height: 1; }
+.pos-val-num { font-size: 32px; font-weight: 800; line-height: 1; }
+
+/* 弱化后的底部数据栏 */
+.pos-footer-metrics {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    padding: 5px 0;
+    font-size: 14px;
+    color: #94a3b8;
+}
+.pos-footer-metrics b { color: #4f46e5; }
+#gaugeCanvas {
+    display: block;   /* 必须转为块级 */
+    margin: 0 auto;  /* 水平居中 */
+}
+.pos-status-hint {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    padding: 10px 0;
+    border-top: 1px dashed #e2e8f0;
+    font-size: 14px;
+    color: #0f172a;
+}
+.text-buy { color: #22c55e; }
+.text-sell { color: #dc2626; }
+a {     
+    color: #111827;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}       
+a:hover {
+    color: var(--accent);
+    text-decoration: none;
+}
+
 </style>
 <h1>🐲<span class="gradient-h1-title">股票回测</span>🐯</h1>
 <div class="toolbar">
@@ -41,7 +111,35 @@
   <button onclick="doBacktest()">查询</button>
 </div>
 <div class="section-grid">
- <div class="section">
+  <div class="section">
+    <div class="section-header">
+        <h3><span class="gradient-title">实时头寸建议</span></h3>
+    </div>
+    <div class="pos-header-grid">
+        <div class="pos-block">
+            <div class="pos-label">股票代码</div>
+            <div id="kellySymbol" class="pos-val-ops text-buy">...</div>
+        </div>
+        <div class="pos-divider"></div>
+        <div class="pos-block">
+            <div class="pos-label">操作建议</div>
+            <div id="kellyOps" class="pos-val-ops text-buy">...</div>
+        </div>
+        <div class="pos-divider"></div>
+        <div class="pos-block">
+            <div class="pos-label">建议仓位</div>
+            <div id="kellyPos" class="pos-val-num text-sell">0.0%</div>
+        </div>
+        <div class="pos-divider"></div>
+        <canvas id="gaugeCanvas" width="260" height="120" style="opacity: 0.8;"></canvas>
+        <div class="pos-divider"></div>
+        <div class="pos-footer-metrics">
+            <span>得分: <b id="kellyScore">0</b><br>置信度: <b id="kellyConfience">0</b></span>
+        </div>
+    </div>
+    <div id="kellyInterpretation" class="pos-status-hint"></div>
+  </div>
+  <div class="section">
     <table>
       <thead><tr>
         <th>排名</th>
