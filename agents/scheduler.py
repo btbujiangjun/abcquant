@@ -3,7 +3,7 @@ from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from db import QuantDB
-from quant.llm import ModelScopeClinet
+from quant.llm import ModelScopeClinet, OllamaClient
 from utils.time import *
 from utils.logger import logger
 from config import CRITICAL_STOCKS_US 
@@ -27,18 +27,14 @@ def strategy_job(name:str, strategy, dragon):
 def hour_job(name:str, spider, strategy, dragon, worker):
     logger.info(f"⚠️  {name} 执行中... ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})")
     #CRITICAL_STOCKS_US = ["BTC-USD", "XPEV"]
-    """
     spider.update_latest_batch(symbols=CRITICAL_STOCKS_US)
     strategy.update_latest(symbols=CRITICAL_STOCKS_US, days=3, update=False)
     dragon.run_report(days_delta(today_str(), -1))
-    """
     
-    worker.backtest_daily("GOOG")
+    #worker.backtest_daily("GOOG")
 
-    """
     for symbol in CRITICAL_STOCKS_US:
         worker.backtest_daily(symbol)
-    """
 
     logger.info("hour_job finished")
 
@@ -49,6 +45,7 @@ class Scheduler:
         self.spider = YF_US_Spider()
         self.worker = DynamicWorker()
         self.strategy = StrategyHelper(ModelScopeClinet(), QuantDB())
+        self.strategy = StrategyHelper(OllamaClient(), QuantDB())
 
     def start(self, hour:int=9, minute:int=0):
         """启动调度器"""

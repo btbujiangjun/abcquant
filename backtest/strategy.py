@@ -133,7 +133,6 @@ class LLMStrategy(BaseStrategy):
         df = self.data.copy()
         df['signal'] = np.where(df['score'] >= self.buy_score, 1, 
                        np.where(df['score'] <= self.sell_score, -1, 0))
-        
         self.signals = df
         return df
 

@@ -20,17 +20,17 @@ async function loadStocks(symbol){
     const stocks=await response.json();
     const selector=document.getElementById('stockSelector'); selector.innerHTML='<option value="">选择股票</option>';
     stocks.forEach(stock=>{const opt=document.createElement('option'); opt.value=stock.symbol; opt.textContent=`${stock.symbol}`; selector.appendChild(opt);});
-    selector.onchange=()=>{const s=selector.value; if(s){currentSymbol=s; updateBacktest(s); document.getElementById('stockSearch').value=s;}};
+    selector.onchange=()=>{const s=selector.value; if(s){currentSymbol=s; updateBacktest(s); document.getElementById('symbol_text').value=s;}};
     if(stocks.length > 0 || symbol != null){
         currentSymbol= (symbol != null ? symbol : stocks[0].symbol);
         selector.value=currentSymbol;
-        document.getElementById('stockSearch').value=currentSymbol;
+        document.getElementById('symbol_text').value=currentSymbol;
         updateBacktest(currentSymbol);
     }
 }
 
 async function doBacktest(symbol=null){
-    let sym=symbol||document.getElementById('stockSearch').value.trim()||document.getElementById('stockSelector').value;
+    let sym=symbol||document.getElementById('symbol_text').value.trim()||document.getElementById('stockSelector').value;
     sym=sym.toUpperCase();
     if(!sym){alert('请输入或选择股票代码'); return;} currentSymbol=sym;
     await updateBacktest(sym);
@@ -102,7 +102,7 @@ async function updateBacktest(symbol) {
         text: `正在计算${symbol}的回测收益...`, 
         color: CHART_THEME.strategies[0],
         textStyle: {
-            fontSize: 20,
+            fontSize: 30,
             fontWeight: 'bold',
         },
         maskColor: 'rgba(255, 255, 255, 0.6)',
@@ -198,3 +198,11 @@ async function updateBacktest(symbol) {
 }
 
 window.addEventListener('resize', () => myChart.resize());
+const input = document.getElementById('symbol_text');
+input.addEventListener('keydown', function(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault(); 
+        doBacktest(this.value);
+    }
+});
+
