@@ -3,6 +3,7 @@
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="static/ui.js"></script>
+<link rel="stylesheet" href="/static/signaltable.css">
 <style>
 #backtest-container { width: 99%; height: 600px; margin-top: 20px; }
 .section {background: white;border-radius: 8px;box-shadow: 0 4px 10px rgba(0,0,0,0.08);padding: 6px;}
@@ -165,6 +166,17 @@ a:hover {
   <div class="section">
     <div style="text-align: center;"><span class="gradient-title" id="mainTitle">策略回测分析</span></div>
     <div class="section" id="backtest-container"></div>
+  </div>
+</div>
+<div class="dashboard-container">
+  <div class="matrix-wrapper">
+    <table id="matrixTable">
+      <thead>
+        <tr id="headerRow"><th rowspan="2" class="sticky-date">交易日期</th><th rowspan="2" class="sticky-date">价格</th></tr>
+        <tr id="statsRow"></tr>
+      </thead>
+      <tbody id="matrixBody"></tbody>
+    </table>
   </div>
 </div>
 <script src="/static/backtest.js"></script>

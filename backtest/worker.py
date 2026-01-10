@@ -17,7 +17,7 @@ from backtest.ensemble import EnsembleEngine
 
 class Worker:
     def __init__(self, engine=None, 
-            n_jobs=-1,
+            n_jobs=1,
             target_risk_ratio=2,
             max_leverage=1,
             is_long_only=True):
@@ -29,39 +29,50 @@ class Worker:
     def append_strategy(self, strategy_config: Tuple[Type[BaseStrategy], Dict[str, Any]]):
         strategy_cls, param_config = strategy_config
         self.strategy_configs.append((strategy_cls, param_config or {}))
-        logger.info(f"✅ 已添加策略: {strategy_cls.__name__} | 参数网格数量: {len(param_config) if param_config else 0}")
+        logger.debug(f"✅ 已添加策略: {strategy_cls.__name__} | 参数网格数量: {len(param_config) if param_config else 0}")
 
     def backtest(self, symbol: str, df: pd.DataFrame) -> Tuple[Dict, Dict]:
         """执行组合回测并生成融合报告"""
-        final_results = {}
+        signals = {}
         if not self.strategy_configs:
             logger.warning("⚠️ 未配置任何策略，回测跳过")
             return {}, {}
 
         for strategy_class, param_grid in self.strategy_configs:
             logger.info(f"🚀 正在优化策略: {strategy_class.strategy_class}...")
-            # 假设 Analyzer.optimize_parameters 返回最佳参数、性能指标和权益曲线
             best_params, best_perf, best_equity = Analyzer.optimize_parameters(
                 strategy_class, df, param_grid, n_jobs=self.n_jobs
             )
             
-            final_results[strategy_class.strategy_class] = {
+            signals[strategy_class.strategy_class] = {
                 "symbol": symbol,
                 "strategy_name": strategy_class.strategy_name, 
                 "strategy_class": strategy_class.strategy_class,
                 "param_config": best_params,
                 "perf": best_perf,
-                "equity_df": best_equity
+                "equity_df": best_equity,
             }
 
-        report = self.ensemble.action(final_results)
-        return final_results, report
+        report = self.ensemble.action(signals)
+        return signals, report
 
 class DynamicWorker:
-    def __init__(self, engine=None, n_jobs=-1):
+    def __init__(self, 
+            engine=None, 
+            n_jobs=1,
+            target_risk_ratio=2,
+            max_leverage=1,
+            is_long_only=True,
+        ):
         self.db = QuantDB()
         self.fetcher = DataFetcher()
-        self.worker = Worker(engine or BacktestEngine(), n_jobs=n_jobs)
+        self.worker = Worker(
+            engine or BacktestEngine(), 
+            n_jobs=n_jobs,
+            target_risk_ratio = target_risk_ratio,
+            max_leverage = max_leverage,
+            is_long_only = is_long_only,
+        )
 
     def _safe_parse_json(self, raw_params: Any, class_name: str) -> Dict:
         """安全解析参数配置，支持处理转义字符串"""

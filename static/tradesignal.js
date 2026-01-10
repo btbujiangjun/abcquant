@@ -1,5 +1,5 @@
 let currentSymbol = '', has_loadStocks = false
-
+const ui = new UI();
 async function loadStocks(symbol){
     const response=await fetch('/stocks'); if(!response.ok) return;
     const stocks=await response.json();
@@ -33,80 +33,6 @@ function getParam(name) {
     return searchParams.get(name) || hashParams.get(name);
 }
 
-const CONFIG = {
-    strategies: [],
-    minStreak: 3,
-    strong_Streak: 5,
-};
-
-let currentDataStore = [];
-
-const fmt = (val, isPct = false, isCss = true) => {
-    if (val == null) return '--';
-    const v = isPct ? (val * 100).toFixed(2) + '%' : val.toFixed(2);
-    const cls = isPct ? (val > 0 ? 'text-pos' : 'text-neg') : '';
-    return isCss ? `<span class="${cls}">${v}</span>` : `<span>${v}</span>`;
-};
-
-/**
- * 绘制凯利头寸仪表盘
- * @param {number} value - 凯利数值 (0.0 到 1.0)
- */
-function drawKellyGauge(value) {
-    const canvas = document.getElementById('gaugeCanvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height - 20;
-    const radius = 100;
-
-    // 清空画布
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // 1. 绘制背景圆弧 (灰色底色)
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, Math.PI, 2 * Math.PI);
-    ctx.lineWidth = 12;
-    ctx.strokeStyle = '#f1f5f9';
-    ctx.stroke();
-
-    // 2. 绘制激活区间 (渐变色：从浅绿到深绿)
-    if (value > 0) {
-        ctx.beginPath();
-        // 限制最大值 1.0
-        const endAngle = Math.PI + (Math.min(value, 1) * Math.PI);
-        ctx.arc(centerX, centerY, radius, Math.PI, endAngle);
-        ctx.lineWidth = 12;
-        const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
-        gradient.addColorStop(0, '#86efac'); // 浅绿
-        gradient.addColorStop(1, '#16a34a'); // 深绿
-        ctx.strokeStyle = gradient;
-        ctx.stroke();
-    }
-
-    // 3. 绘制指针
-    const angle = Math.PI + (Math.min(Math.max(value, 0), 1) * Math.PI);
-    const pointerLen = radius - 15;
-    
-    ctx.save();
-    ctx.translate(centerX, centerY);
-    ctx.rotate(angle);
-    
-    ctx.beginPath();
-    ctx.moveTo(0, -4);
-    ctx.lineTo(pointerLen, 0);
-    ctx.lineTo(0, 4);
-    ctx.fillStyle = '#1e293b'; // 深色指针
-    ctx.fill();
-    
-    // 轴心圆点
-    ctx.beginPath();
-    ctx.arc(0, 0, 6, 0, Math.PI * 2);
-    ctx.fillStyle = '#1e293b';
-    ctx.fill();
-    ctx.restore();
-}
-
 function render_strategy_score(tableBodyId, data_items, summary) {
   const tbody = document.getElementById(tableBodyId);
   tbody.innerHTML = ""; 
@@ -119,8 +45,7 @@ function render_strategy_score(tableBodyId, data_items, summary) {
     .sort((a, b) => b[1].annual_return - a[1].annual_return) // 按权重从高到低排序
   items.forEach(([name, data], index) => {
     const tr = document.createElement("tr");
-    name = data[0]
-    data = data[1]
+    name = data[0], data = data[1]
     const weight = ((data.weight || 0) * 100).toFixed(1);
     const annual_return = ((data.annual_return || 0) * 100).toFixed(2)
     const win_adj = ((data.win_adj || 0) * 100).toFixed(2)
@@ -203,83 +128,8 @@ function renderReport(symbol, report){
     td.innerHTML = [...report.dynamic_risk_management,...report.contribution_analysis].join('</br>') || ""
     $('#kellyAction').text(report.action_guide);
     $('#kellyInterpretation').text(report.logic_interpretation);
-    drawKellyGauge(report.suggested_position);
+    UI.drawKellyGauge("gaugeCanvas", report.suggested_position);
     render_strategy_score('strategy_score', report.trace_items, report.trace_summary)
-}
-
-function renderStat(label, value) {
-    return (
-        '<div class="stat-item">' +
-            '<span class="stat-label">' + label + '</span>' +
-            '<span class="stat-value">' + value + '</span>' +
-        '</div>'
-    );
-}
-
-function renderRatioStat(label, mainValue, ratioValue) {
-    return (
-        '<div class="stat-item">' +
-            '<span class="stat-label">' + label + '</span>' +
-            '<span class="stat-value">' +
-                mainValue + '(' + ratioValue + ')' +
-            '</span>' +
-        '</div>'
-    );
-}
-
-function updateTableHeader(strategies) {
-    const $header = $('#headerRow');
-    const $stats  = $('#statsRow');
-
-    $header.find('th:gt(1)').remove();
-    $stats.empty();
-
-    strategies.forEach(s => {
-        const perf = s.perf || {};
-
-        $header.append('<th>' + s.strategy_class.replace(/Strategy/g, '') + '</th>');
-
-        const totalDays  = perf.total_days || 0;
-        const tradeDays  = perf.trade_days || 0;
-        const emptyDays  = totalDays - tradeDays;
-
-        const tradeRatio = totalDays > 0 ? tradeDays / totalDays : 0;
-        const emptyRatio = totalDays > 0 ? emptyDays / totalDays : 0;
-
-        // ===== 指标区 =====
-        const html = [
-            '<th class="stats-th">',
-
-            renderStat('总收益',     fmt(perf.total_return, false)),
-            renderStat('年化收益',   fmt(perf.annual_return, true)),
-            renderStat('最大回撤',   fmt(perf.max_drawdown, false)),
-            renderStat('盈亏比',     fmt(perf.profit_loss_ratio, false)),
-            renderStat('夏普比率',   fmt(perf.sharpe_ratio, false)),
-            renderStat('卡玛比率',   fmt(perf.calmar_ratio, false)),
-            renderStat('按天胜率',   fmt(perf.win_rate, true)),
-            renderStat('按笔胜率',   fmt(perf.trade_win_rate, true)),
-            renderStat('交易笔数',   perf.trade_count ?? '-'),
-            renderStat('持仓状态',   perf.current_position ?? '-'),
-            renderStat('最近盈利',   fmt(perf.last_trade_pnl, true)),
-            renderStat('交易天数',   totalDays),
-
-            renderRatioStat(
-                '持仓天数',
-                tradeDays,
-                fmt(tradeRatio, true, false)
-            ),
-
-            renderRatioStat(
-                '空仓天数',
-                emptyDays,
-                fmt(emptyRatio, true, false)
-            ),
-
-            '</th>'
-        ].join('');
-
-        $stats.append(html);
-    });
 }
 
 async function loadData(symbol=null) {
@@ -291,30 +141,7 @@ async function loadData(symbol=null) {
         const result = await response.json(); 
         rawStrategies = result["signal"]
         renderReport(symbol, result["report"])
-        rawStrategies.sort((a, b) => (b.perf.annual_return || 0) - (a.perf.annual_return || 0));
-        const strategyNames = rawStrategies.map(s => s.strategy_name);
-        CONFIG.strategies = strategyNames;
-        updateTableHeader(rawStrategies);
-
-        const matrixMap = {};
-        rawStrategies.forEach(strat => {
-            const name = strat.strategy_name;
-            strat.equity_df.forEach(item => {
-                const rawDate = item.date;
-                const date = typeof rawDate === 'string' ? rawDate.split('T')[0] : rawDate;
-                if (!matrixMap[date]) {
-                    matrixMap[date] = { date: date, price: item.close.toFixed(2), signals: {} };
-                }
-                const signal = item.signal == 1 ? "BUY" : (item.signal == -1 ? "SELL" : "HOLD");
-                matrixMap[date].signals[name] = signal || "HOLD";
-            });
-        });
-
-        currentDataStore = Object.values(matrixMap).sort((a, b) => 
-            b.date.localeCompare(a.date)
-        );
-
-        renderMatrix();
+        ui.renderSignalMatrix(result["signal"])
     } catch (err) {
         console.error("加载失败:", err);
         $('#matrixBody').html('<tr><td colspan="100">暂无有效信号数据</td></tr>');
@@ -323,41 +150,6 @@ async function loadData(symbol=null) {
     }
 }
 
-function renderMatrix() {
-    let html = "";
-    currentDataStore.forEach((row, rowIndex) => {
-        html += `<tr><td class="sticky-date">${row.date}</td><td>${row.price}</td>`;
-        CONFIG.strategies.forEach((stratName) => {
-            const sig = row.signals[stratName] || "HOLD";
-            let streak = calculateStreak(sig, rowIndex, stratName);
-            let alertClass = "";
-            let prefix = "";
-            if (rowIndex === 0 && sig !== "HOLD" && streak >= CONFIG.minStreak) {
-                alertClass = sig === "BUY" ? "pulse-buy" : "pulse-sell";
-                prefix = streak >= CONFIG.strong_Streak ? "🔥 " : "✨ ";
-            }
-            const icon = sig === 'BUY' ? '▲' : (sig === 'SELL' ? '▼' : '■');
-            const streakLabel = (streak > 1 && sig !== "HOLD") ? `<span class="streak-badge">(${streak}D)</span>` : "";
-            html += `<td><span class="sig-tag ${sig.toLowerCase()} ${alertClass}">${prefix}${icon} ${sig}${streakLabel}</span></td>`;
-        });
-        html += "</tr>";
-    });
-    $('#matrixBody').html(html);
-}
-function calculateStreak(sig, rowIndex, stratName) {
-    if (sig === "HOLD") return 1;
-    let streak = 1;
-    // 往下找（更旧的日期）
-    for (let k = rowIndex + 1; k < currentDataStore.length; k++) {
-        if (currentDataStore[k].signals[stratName] === sig) {
-            streak++;
-        } else {
-            break;
-        }
-    }
-    return streak;
-}
-
 $(document).ready(() => {
-    loadStocks(getParam("symbol"))
+    loadStocks(getParam("symbol"))
 });

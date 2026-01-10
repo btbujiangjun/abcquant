@@ -54,20 +54,29 @@ class EMACrossStrategy(BaseStrategy):
         super().__init__(data)
         if "close" not in data.columns:
             raise KeyError("`close` field is required")
+        if short >= long:
+            raise ValueError("short EMA must be < long EMA")
+
         self.short = short
         self.long = long
 
     def generate_signals(self):
         df = self.data.copy()
+
         ema_s = Indicators.ema(df, self.short)
         ema_l = Indicators.ema(df, self.long)
-        
+
+        s_prev = ema_s.shift(1)
+        l_prev = ema_l.shift(1)
+
         conditions = [
-            (ema_s > ema_l),
-            (ema_s < ema_l)
+            (s_prev > l_prev),  # 多头区间
+            (s_prev < l_prev)   # 空头区间
         ]
         choices = [1, -1]
         df['signal'] = np.select(conditions, choices, default=0)
+        df.iloc[:self.long * 3, df.columns.get_loc('signal')] = 0 #冷启动
+
         self.signals = df
         return df
 
@@ -83,7 +92,6 @@ class RSIStrategy(BaseStrategy):
 
     def generate_signals(self):
         df = self.data.copy()
-        # 假设 Indicators 已实现 rsi 方法
         df['rsi'] = Indicators.rsi(df, self.period)
         
         conditions = [

@@ -140,13 +140,13 @@ SELECT * FROM (
         sql += f" ORDER BY date DESC"
         if flag:
             sql += f", score {'DESC' if flag == 'TopReports' else 'ASC'}"
-        return self.db.query(sql)
-
+        return self.db.query(sql).fillna("-")
+        
 
 if __name__ == '__main__':
     dragon = Dragon()
-    date = "2025-10-31"
-    date = days_delta(today_str(), -1)
+    date = "2026-01-07"
+    #date = days_delta(today_str(), -1)
     """
     dragon.run_growth(date or days_delta(today_str(), -1))
     df = dragon.get_growth(flag="TopGainers", date=date)   

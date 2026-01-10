@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
     from db import QuantDB
     from analysis.dragon import Dragon
     from backtest.worker import DynamicWorker
-    worker = DynamicWorker()
+    worker = DynamicWorker(max_leverage = 1.2, is_long_only = False)
     db = QuantDB(db_path=db_path)
     dragon = Dragon(db_path=db_path)
     yield
@@ -180,7 +180,14 @@ async def backtest(symbol:str, start:str, end:str, online:str="ai"):
         summary_data.append(metrics)
     json_obj["summary_data"] = sorted(summary_data, key=lambda x: x['total_return'], reverse=True)
     json_obj["report"] = report
-    return json.dumps(to_jsonable(json_obj), ensure_ascii=False)
+
+
+    json_obj["signal"] = []    
+    for k, v in sorted_results:
+        v["symbol"], v["strategy_class"] = symbol, k
+        v["equity_df"] = v["equity_df"].replace([np.inf, -np.inf], np.nan).fillna(0).to_dict(orient='records')    
+        json_obj["signal"].append(v)
+    return to_jsonable(json_obj)
 
 # ===================
 # 后端接口

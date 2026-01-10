@@ -60,7 +60,7 @@ class Strategy:
 
         # 2. 数据有效性检验
         if len(df_day) < 1 or len(df_week) < 1:
-            raise ValueError(f"{symbol}/{date} data is none")
+            raise ValueError(f"{symbol}/{date} ohlc data is none")
 
         latest_day  = df_day['date'].iat[-1].split()[0]
         latest_week = df_week['date'].iat[-1].split()[0]
@@ -99,7 +99,7 @@ class Strategy:
 
         # 7. 调用 LLM
         report = self.llm.chat(prompt)
-       
+
         # 8. remove think block
         think_str = "</think>"
         idx = report.rfind(think_str)
@@ -114,11 +114,12 @@ class Strategy:
                 score = float(matches[-1])
             except ValueError:
                 score = None
+                logger.warning(f"Not found score from llm reponse for {symbol} at {latest_day}")
 
         # 10. 返回格式化结果
         return {
             "symbol": symbol,
-            "date": df_day["date"].iat[-1],
+            "date": latest_day,
             "strategy": self.name,
             "score": score,
             "report": report
@@ -516,13 +517,12 @@ class StrategyHelper():
 
 if __name__ == "__main__":
     from quant.llm import ModelScopeClinet
-    symbols, update = CRITICAL_STOCKS_US, False
-    #symbols = ['VNM']
-    #update = False
+    symbols, update, days = CRITICAL_STOCKS_US, False, 1200
+    symbols, update, days = ['SQQQ'], True, 2
     helper = StrategyHelper(ModelScopeClinet(), QuantDB())
     #helper.analysis("MSTX", "2025-10-30", update=False)
     
     for symbol in symbols:
-        helper.update(symbol, 1200, update=update)
+        helper.update(symbol, days, update=update)
     
 

@@ -1,4 +1,5 @@
 let myChart, isChartInit=false
+const ui = new UI();
 document.addEventListener('DOMContentLoaded',()=>{
     initDateSelector()
     loadStocks()
@@ -187,6 +188,9 @@ async function updateBacktest(symbol) {
             });
         });
 
+        // 3. signal table
+        ui.renderSignalMatrix(res.signal)
+
         myChart.hideLoading();
 
         // 3. 渲染检查
@@ -219,6 +223,7 @@ async function updateBacktest(symbol) {
         myChart.hideLoading();
     }
 }
+
 
 window.addEventListener('resize', () => myChart.resize());
 const input = document.getElementById('symbol_text');
