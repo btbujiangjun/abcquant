@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+  /* 双列布局 */
+  .section-grid {display: grid;grid-template-columns: repeat(auto-fill, minmax(98%, 1fr));gap: 24px;}
+  .section {background: white;border-radius: 8px;box-shadow: 0 4px 10px rgba(0,0,0,0.08);padding: 10px;}
+  .section-header {display: flex;justify-content: space-between;align-items: center;margin-bottom: 8px;}
+  .section-header h3 {margin: 0;font-size: 1.2em;}
+  .date-selector {font-size: 0.9em;color: #666;}
+  .form-control {
+    width: 100%; padding: 10px 14px; border: 1px solid #d9d9d9;
+    border-radius: 4px; font-size: 14px; transition: all 0.3s;
+  }
+  table {width: 100%;border-collapse: collapse;margin-bottom: 10px;font-size: 14px;}
+  th, td {padding: 8px 10px;border: 1px solid #ddd;text-align: center;}
+  th {background-color: #f8f8f8;}
+  tbody tr:hover {background-color: #f9f9f9;}
+</style>
+<h1>🐲<span class="gradient-h1-title">系统工具</span>🐯</h1>
+
+<div class="toolbar">
+  <label>数据库</label>
+  <select id="database" placeholder="选择数据库" required>
+    <option value="quant" selected>价格库</option>
+    <option value="trade">交易库</option> 
+  </select>
+  <label>数据表</label>
+  <select id="datatable" placeholder="选择数据表">
+    <option value="quant" selected>价格库</option>
+    <option value="trade">交易库</option> 
+  </select>  
+  <textarea id="sql" class="form-control" placeholder='选择数据表, 或自定义SQL'></textarea>
+  <button onclick="load_data()">查询</button>
+</div>
+
+<div class="section-grid">
+  <div class="section">
+    <table id="query_table">
+      <thead id="tableHead"></thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</div>
+<script src="/static/systemtool.js"></script>
+{% endblock %}
