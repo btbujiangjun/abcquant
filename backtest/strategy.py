@@ -42,7 +42,6 @@ class LongTermValueStrategy(BaseStrategy):
         df = self.data.copy()
         df['signal'] = 0
         df.at[df.index[0], "signal"] = 1
-        #df.at[df.index[-1], "signal"] = -1
         self.signals = df
         return df
 
@@ -220,6 +219,240 @@ class VolumePriceStrategy(BaseStrategy):
         # 信号：成交量超过平均水平 50% 且 价格处于上涨趋势
         df['signal'] = np.where((df['volume'] > vol_ma * (1 + self.buy_vol_rate)) & (price_change > self.buy_price_rate), 1, 
                        np.where(price_change < self.sell_price_rate, -1, 0))
+        
+        self.signals = df
+        return df
+
+class MagicNineStrategy(BaseStrategy):
+    """
+    神奇九转策略 (基于 TD Sequential 简化)
+    核心逻辑：连续 9 天收盘价低于（买入结构）或高于（卖出结构）4天前的收盘价。
+    """
+    strategy_class = "MagicNineStrategy"
+    strategy_name = "神奇九转策略"
+
+    def __init__(self, data: pd.DataFrame, window=4, target_count=9):
+        """
+        :param data: 包含 'close' 的 DataFrame
+        :param window: 比较跨度，默认为 4
+        :param target_count: 触发信号的连续计数，默认为 9
+        """
+        super().__init__(data)
+        if "close" not in data.columns:
+            raise KeyError("`close` field is required")
+        self.window = window
+        self.target_count = target_count
+
+    def generate_signals(self) -> pd.DataFrame:
+        df = self.data.copy()
+
+        # 1. 判定当前收盘价与 N 天前收盘价的关系
+        # up_cond: 卖出结构条件 (收盘价 > 4天前收盘价)
+        # down_cond: 买入结构条件 (收盘价 < 4天前收盘价)
+        up_cond = df['close'] > df['close'].shift(self.window)
+        down_cond = df['close'] < df['close'].shift(self.window)
+
+        # 2. 计算连续计数的逻辑函数 (向量化 + 循环优化)
+        def _get_sequential_counts(series):
+            counts = np.zeros(len(series))
+            cur = 0
+            for i, val in enumerate(series):
+                if val:
+                    cur += 1
+                else:
+                    cur = 0
+                counts[i] = cur
+            return counts
+
+        # 计算上升计数和下降计数
+        df['up_count'] = _get_sequential_counts(up_cond)
+        df['down_count'] = _get_sequential_counts(down_cond)
+
+        # 3. 生成信号
+        # signal = 1: 买入结构完成 (连续 9 个 down) -> 潜在反弹点
+        # signal = -1: 卖出结构完成 (连续 9 个 up) -> 潜在回调点
+        df['signal'] = 0
+        df.loc[df['down_count'] == self.target_count, 'signal'] = 1
+        df.loc[df['up_count'] == self.target_count, 'signal'] = -1
+
+        self.signals = df
+        return df
+
+class DualThrustStrategy(BaseStrategy):
+    """
+    Dual Thrust 策略：基于前 N 日波幅的突破系统
+    """
+    strategy_class = "DualThrustStrategy"
+
+    def __init__(self, data, period=5, k1=0.5, k2=0.5):
+        super().__init__(data)
+        self.period = period
+        self.k1 = k1  # 上轨系数
+        self.k2 = k2  # 下轨系数
+
+    def generate_signals(self):
+        df = self.data.copy()
+        
+        # 计算过去 N 天的最高价、最低价、收盘价
+        hh = df['high'].rolling(self.period).max().shift(1)
+        hc = df['close'].rolling(self.period).max().shift(1)
+        lc = df['close'].rolling(self.period).min().shift(1)
+        ll = df['low'].rolling(self.period).min().shift(1)
+        
+        # 核心逻辑：Range = max(HH-LC, HC-LL)
+        df['range'] = np.maximum(hh - lc, hc - ll)
+        
+        # 计算当日上下轨
+        # 这里的 open 是当日开盘价
+        df['upper'] = df['open'] + self.k1 * df['range']
+        df['lower'] = df['open'] - self.k2 * df['range']
+        
+        # 信号判定
+        df['signal'] = np.where(df['close'] > df['upper'], 1,
+                       np.where(df['close'] < df['lower'], -1, 0))
+        
+        self.signals = df
+        return df
+
+class DonchianStrategy(BaseStrategy):
+    """
+    唐奇安通道突破策略 (海龟法核心)
+    """
+    strategy_class = "DonchianStrategy"
+
+    def __init__(self, data, n1=20, n2=10):
+        super().__init__(data)
+        self.n1 = n1  # 入场通道周期
+        self.n2 = n2  # 离场通道周期
+
+    def generate_signals(self):
+        df = self.data.copy()
+        
+        # 入场线：过去 n1 天的最高/最低
+        df['upper_in'] = df['high'].rolling(self.n1).max().shift(1)
+        df['lower_in'] = df['low'].rolling(self.n1).min().shift(1)
+        
+        # 离场线：过去 n2 天的最低价 (多头离场)
+        df['exit_long'] = df['low'].rolling(self.n2).min().shift(1)
+        
+        signals = np.zeros(len(df))
+        in_position = False
+        
+        # 由于涉及持仓状态锁定，这里使用循环更严谨
+        close = df['close'].values
+        upper_in = df['upper_in'].values
+        exit_long = df['exit_long'].values
+        
+        for i in range(1, len(df)):
+            if not in_position:
+                if close[i] > upper_in[i]:
+                    signals[i] = 1
+                    in_position = True
+            else:
+                if close[i] < exit_long[i]:
+                    signals[i] = -1
+                    in_position = False
+                    
+        df['signal'] = signals
+        self.signals = df
+        return df
+
+class MeanReversionStrategy(BaseStrategy):
+    """
+    基于 Z-Score 的均值回归策略
+    """
+    strategy_class = "MeanReversionStrategy"
+
+    def __init__(self, data, period=20, threshold=2.0):
+        super().__init__(data)
+        self.period = period
+        self.threshold = threshold
+
+    def generate_signals(self):
+        df = self.data.copy()
+        
+        # 计算移动平均和标准差
+        df['ma'] = df['close'].rolling(self.period).mean()
+        df['std'] = df['close'].rolling(self.period).std()
+        
+        # 计算 Z-Score: (价格 - 均值) / 标准差
+        df['zscore'] = (df['close'] - df['ma']) / df['std']
+        
+        # 信号：极高位做空，极低位做多
+        df['signal'] = np.where(df['zscore'] < -self.threshold, 1,
+                       np.where(df['zscore'] > self.threshold, -1, 0))
+        
+        self.signals = df
+        return df
+
+class MACDDivergenceStrategy(BaseStrategy):
+    """MACD 柱体背离策略：识别趋势动能衰竭"""
+    strategy_class = "MACDDivergenceStrategy"
+
+    def __init__(self, data, fast=12, slow=26, signal=9):
+        super().__init__(data)
+        self.params = (fast, slow, signal)
+
+    def generate_signals(self) -> pd.DataFrame:
+        df = self.data.copy()
+        # 直接调用你的 Indicators
+        macd_l, signal_l, hist = Indicators.macd(df, *self.params)
+        
+        # 简化逻辑：价格创新低但 Hist 抬升 (底背离预警)
+        price_falling = df['close'] < df['close'].shift(1)
+        hist_rising = hist > hist.shift(1)
+        hist_negative = hist < 0
+        
+        # 信号：1 买入(底背离), -1 卖出(顶背离)
+        df['signal'] = np.where(price_falling & hist_rising & hist_negative, 1,
+                       np.where(~price_falling & ~hist_rising & (hist > 0), -1, 0))
+        
+        self.signals = df
+        return df
+
+class KDJStrategy(BaseStrategy):
+    """KDJ 超买超卖策略"""
+    strategy_class = "KDJStrategy"
+
+    def __init__(self, data, n=9, m1=3, m2=3):
+        super().__init__(data)
+        self.params = (n, m1, m2)
+
+    def generate_signals(self):
+        df = self.data.copy()
+        k, d, j = Indicators.kdj(df, *self.params)
+        
+        # 逻辑：J线下穿20买入（超卖恢复），上穿80卖出（超买回调）
+        # 或者使用更经典的 K, D 金叉
+        buy_cond = (k > d) & (k.shift(1) <= d.shift(1)) & (d < 30)
+        sell_cond = (k < d) & (k.shift(1) >= d.shift(1)) & (d > 70)
+        
+        df['signal'] = np.where(buy_cond, 1, np.where(sell_cond, -1, 0))
+        
+        self.signals = df
+        return df
+
+class ResonanceStrategy(BaseStrategy):
+    """布林带 + RSI 共振策略"""
+    strategy_class = "ResonanceStrategy"
+
+    def __init__(self, data, b_period=20, r_period=14):
+        super().__init__(data)
+        self.b_p = b_period
+        self.r_p = r_period
+
+    def generate_signals(self):
+        df = self.data.copy()
+        
+        mid, upper, lower = Indicators.bbands(df, period=self.b_p)
+        rsi = Indicators.rsi(df, period=self.r_p)
+        
+        # 买入：触碰布林下轨 且 RSI 处于超卖区 (< 35)
+        buy_signal = (df['close'] <= lower) & (rsi < 35)
+        # 卖出：触碰布林上轨 且 RSI 处于超买区 (> 65)
+        sell_signal = (df['close'] >= upper) & (rsi > 65)
+        
+        df['signal'] = np.where(buy_signal, 1, np.where(sell_signal, -1, 0))
         
         self.signals = df
         return df

@@ -22,7 +22,7 @@
 <div class="toolbar">
   <label>数据库</label>
   <select id="database" placeholder="选择数据库" required>
-    <option value="quant" selected>价格库</option>
+    <option value="quant" selected>分析库</option>
     <option value="trade">交易库</option> 
   </select>
   <label>数据表</label>
@@ -30,15 +30,15 @@
     <option value="quant" selected>价格库</option>
     <option value="trade">交易库</option> 
   </select>  
-  <textarea id="sql" class="form-control" placeholder='选择数据表, 或自定义SQL'></textarea>
   <button onclick="load_data()">查询</button>
+  <textarea id="sql" class="form-control" placeholder='选择数据表, 或自定义SQL'></textarea>
 </div>
 
 <div class="section-grid">
   <div class="section">
     <table id="query_table">
       <thead id="tableHead"></thead>
-      <tbody id="tableBody"></tbody>
+      <tbody id="tableBody"><tr><td>等待查询结果</td></tr></tbody>
     </table>
   </div>
 </div>

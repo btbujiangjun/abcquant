@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from db import QuantDB
 from utils.time import *
 from utils.logger import logger
+from utils.checkpoint import Checkpoint
 from config import CRITICAL_STOCKS_US
 from quant.indicator import IndicatorCalculator
 from quant.llm import LLMClient
@@ -495,21 +496,22 @@ class StrategyHelper():
             self.db.update_analysis_report(pd.DataFrame(data))
             return True
 
-    def update(self, symbol: str, days: int=10, update=False):
+    def update(self, symbol: str, days: int=10, update=False, cp:Checkpoint=None):
         today = datetime.today()
-        date = today - timedelta(days=days)
-        while(date <= today):
+        for day in range(days):
+            date = today - timedelta(days=day)
             date_str = date.strftime("%Y-%m-%d")
+            
             if not update:
                 df = self.db.query_analysis_report(symbol, date=date_str, top_k=1)        
                 if isinstance(df, pd.DataFrame) and not df.empty:
                     logger.info(f"🟡 Analysis report for {symbol} ({date_str}) already exists.")
-                    date = date + timedelta(days=1)
                     continue
-
+            if cp is not None and not cp.seek({"symbol": symbol, "date":date_str}):
+                logger.info(F"🟡 Skip Analysis report {symbol}({date_str}) by checkpoint mode")
+                continue
             if self.analysis(symbol, date_str, update=update):
                 logger.info(F"💚Analysis report {symbol} at {date_str} finished.")
-            date = date + timedelta(days=1)
 
     def update_latest(self, symbols:list[str]=CRITICAL_STOCKS_US, days:int=2, update:bool=False):
         for symbol in symbols:
@@ -517,12 +519,13 @@ class StrategyHelper():
 
 if __name__ == "__main__":
     from quant.llm import ModelScopeClinet
-    symbols, update, days = CRITICAL_STOCKS_US, False, 1200
-    symbols, update, days = ['SQQQ'], True, 2
+    symbols, update, days = CRITICAL_STOCKS_US, True, 1200
+    #symbols, update, days = ['SQQQ'], True, 2
     helper = StrategyHelper(ModelScopeClinet(), QuantDB())
     #helper.analysis("MSTX", "2025-10-30", update=False)
-    
+
+    cp = Checkpoint("./.quant_ckpt")
     for symbol in symbols:
-        helper.update(symbol, days, update=update)
+        helper.update(symbol, days, update=update, cp=cp)
     
 

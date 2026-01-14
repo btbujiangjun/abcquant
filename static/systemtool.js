@@ -1,7 +1,3 @@
-document.getElementById('toggleSidebar').addEventListener('click',()=>{
-    document.getElementById('sidebar').classList.toggle('collapsed');
-});
-// 初始化
 document.addEventListener('DOMContentLoaded',()=>{
   const selector=document.getElementById('database');
   selector.onchange=()=>{

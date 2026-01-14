@@ -1,7 +1,8 @@
 import json
 import numpy as np
 import pandas as pd
-from fastapi import Request, Form, FastAPI, HTTPException
+from typing import Optional
+from fastapi import Query, Request, Form, FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -14,21 +15,22 @@ from config import CRITICAL_STOCKS_US
 from utils.time import today_str, days_delta
 
 db_path = "./data/quant_data.db"
-db, dragon, worker = None, None, None 
+tdb_path = "./data/quant_trade.db"
+db, tdb, dragon, worker = None, None, None, None 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global worker, db, dragon
-    from db import QuantDB
+    global worker, db, tdb, dragon
+    from db import QuantDB, TradeDB
     from analysis.dragon import Dragon
     from backtest.worker import DynamicWorker
     worker = DynamicWorker(max_leverage = 1.2, is_long_only = False)
     db = QuantDB(db_path=db_path)
+    tdb = TradeDB(db_path=tdb_path)
     dragon = Dragon(db_path=db_path)
     yield
 
 app = FastAPI(lifespan=lifespan)
 
-# 绑定模板目录
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 # ===================
@@ -60,7 +62,6 @@ async def delete_strategy(strategy_id: int):
     status = "success" if db.del_strategy_pool(strategy_id) > 0 else "failed"
     return JSONResponse({"status": status})
 
-
 @app.get("/backtest")
 async def backtest_page(request: Request):
     return templates.TemplateResponse("backtest.html", {"request": request, "page":"backtest", "title":"📊策略回测"})
@@ -68,6 +69,40 @@ async def backtest_page(request: Request):
 @app.get("/tradesignal")
 async def tradesignal_page(request: Request):
     return templates.TemplateResponse("tradesignal.html", {"request": request, "page":"tradesignal", "title":"📊交易信号"})
+
+
+@app.get("/systemtool")
+async def tradesignal_page(request: Request):
+    return templates.TemplateResponse("systemtool.html", {"request": request, "page":"systemtool", "title":"📊系统工具"})
+
+@app.get("/api/systemtool")
+async def tradesignal(
+    cli: str = Query(...),
+    database: str = Query(...),
+    datatable: Optional[str] = Query(None),
+    sql: Optional[str] = Query(None)
+):
+    if cli == "table":
+        if database == "quant":
+            return db.tables()
+        elif database == "trade":
+            return tdb.tables()
+        return []
+    else:
+        sql = sql or f"SELECT * FROM {datatable} LIMIT 200"
+        df = db.query(sql) if database == "quant" else tdb.query(sql) 
+        df = (
+            df.replace([np.inf, -np.inf], np.nan)
+            .fillna(0)
+            .reset_index()
+        )
+
+        return {
+            "columns": df.columns.tolist(),
+            "rows": df.to_dict(orient="records")
+        }
+
+
 @app.get("/api/tradesignal/{symbol}")
 async def tradesignal(symbol:str):
     signal = db.fetch_strategy_signal(symbol)

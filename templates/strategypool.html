@@ -2,7 +2,6 @@
 
 {% block content %}
 <style>
-    /* 1. 变量定义：一处修改，全局生效 */
     :root {
         --primary-color: #1890ff;
         --danger-color: #ff4d4f;
@@ -10,48 +9,33 @@
         --text-main: #262626;
         --border-color: #f0f0f0;
     }
-
-    /* 2. 布局优化 */
     .container { max-width: 100%; margin: 0 auto; padding: 2px; }
-    
     .section-card { 
         background: white; border-radius: 8px; 
         padding: 24px; margin-bottom: 24px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     }
-
-    /* 4. DataTables 间距美化 */
     .dataTables_wrapper .dataTables_filter, 
     .dataTables_wrapper .dataTables_length { margin-bottom: 16px !important; }
     
     table.dataTable { border: 1px solid var(--border-color) !important; border-radius: 4px; }
     table.dataTable thead th { background: #fafafa; color: #595959; font-weight: 500; border-bottom: 1px solid var(--border-color); }
-
-    /* 5. 表单优化 */
     .form-section form { display: grid; gap: 16px; }
-    
     .input-label { display: block; margin-bottom: 8px; font-size: 14px; color: #595959; font-weight: 500; }
-    
     .form-control {
         width: 100%; padding: 10px 14px; border: 1px solid #d9d9d9;
         border-radius: 4px; font-size: 14px; transition: all 0.3s;
     }
-
     .form-control:focus { border-color: var(--primary-color); outline: none; box-shadow: 0 0 0 2px rgba(24,144,255,0.1); }
-
-    /* 针对参数配置使用代码风格 */
     textarea.form-control {
         font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
         background: #fafafa; color: #272727; min-height: 120px;
     }
-
-    /* 6. 按钮样式 */
     .btn { cursor: pointer; border-radius: 4px; font-weight: 500; transition: 0.3s; padding: 8px 16px; border: 1px solid transparent; }
     .btn-primary { background: var(--primary-color); color: white; border-color: var(--primary-color); }
     .btn-primary:hover { background: #40a9ff; }
     .btn-del { color: var(--danger-color); font-size: 13px; }
     .btn-del:hover { text-decoration: underline; }
-
 </style>
 
 <div class="container">

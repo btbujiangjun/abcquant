@@ -1,4 +1,3 @@
-// 初始化
 document.addEventListener('DOMContentLoaded',()=>{
     const now = new Date();
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);

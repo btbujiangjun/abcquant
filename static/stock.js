@@ -22,15 +22,12 @@ function initScoreChart(){
     isScoreChartInit=true;
 }
 
-document.getElementById('toggleSidebar').addEventListener('click',()=>{
-    document.getElementById('sidebar').classList.toggle('collapsed');
-});
-
 function calculateEMA(data, period){
     const k=2/(period+1), emaArray=[]; let emaPrev=data[0].close;
     data.forEach((d,i)=>{const ema=i===0?d.close:d.close*k+emaPrev*(1-k); emaArray.push(ema); emaPrev=ema;});
     return emaArray;
 }
+
 function showReport(text){
     text = marked.parse(getAfterThink(text))
     return text
