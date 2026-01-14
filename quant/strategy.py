@@ -31,8 +31,10 @@ class Strategy:
     def __init__(self, llm:LLMClient, db:QuantDB=QuantDB()):
         self.llm = llm
         self.db = db
-        self.columns = ['date', 'open', 'close', 'high', 'low', 'volume']
-        #, 'ema_short', 'ema_long', 'macd', 'signal', 'hist']
+        self.columns = ['date', 'open', 'close', 'high', 'low', 'volume', 
+            'ema_short', 'ema_long', 'macd', 'signal', 'hist',
+            'rsi', 'kdj_k', 'kdj_d', 'kdj_j', 'bb_upper', 'bb_mid', 'bb_lower', 'atr'
+        ]
 
     def analyze(self, 
             df_day: pd.DataFrame, 
@@ -83,7 +85,7 @@ class Strategy:
 
 
         # 4. 加指标
-        df_day = IndicatorCalculator.calc_ema_macd(df_day)
+        df_day = IndicatorCalculator.calc_ema_macd_kdj_boll(df_day)
         df_week = IndicatorCalculator.calc_ema_macd_kdj_boll(
             df_week, 
             ema_short=6, 
@@ -96,7 +98,7 @@ class Strategy:
 
         # 6. 构造 prompt
         prompt = self.build_prompt(analysis)
-        logger.debug(prompt)
+        logger.info(prompt)
 
         # 7. 调用 LLM
         report = self.llm.chat(prompt)
@@ -164,12 +166,246 @@ class ThreeFilterStrategy(Strategy):
         today, yesterday = analysis["today"], analysis["yesterday"]
         this_week, last_week = analysis["this_week"], analysis["last_week"]
         df_day, df_week = analysis["df_day"], analysis["df_week"]
+
+
+        return f"""
+## 👤 角色设定
+你是一位专业的量化分析师，专注于技术分析与量化策略开发。你精通三层滤网交易系统（Three Screen Trading System），擅长：
+- 多时间框架分析（周线、日线、日内）
+- 技术指标解读（EMA、MACD、RSI、KDJ、布林带等）
+- 价格行为与形态识别
+- 风险管理与风险收益比评估
+
+**你的任务**：基于提供的股票数据，运用三层滤网交易系统进行全面技术分析，并给出未来一周价格走势的量化评分。
+
+---
+
+## 📋 待分析数据
+
+### 股票基本信息
+- **股票代码**：{today["symbol"]}
+- **国家/地区**：{today["country"]}
+- **所属行业**：{today["industry"]}
+- **所属板块**：{today["sector"]}
+
+### 周K线分析数据
+**当前周期数据**：
+- **短期EMA值**：{this_week["ema_short"]:.2f}，斜率：{analysis["week_short_slope"]:.2f}
+- **长期EMA值**：{this_week["ema_long"]:.2f}，斜率：{analysis["week_long_slope"]:.2f}
+- **EMA关系**：短期EMA {"高于" if this_week["ema_short"]>this_week["ema_long"] else "低于"}长期EMA
+- **EMA斜率关系**：短期EMA斜率 {"高于" if analysis["week_short_slope"]>analysis["week_long_slope"] else "低于"}长期EMA斜率
+- **短期EMA斜率变化**：前一周为{last_week["ema_short"] - df_week.iloc[-3]["ema_short"]:.2f}，当前{"高于" if analysis["week_short_slope"] > (last_week["ema_short"] - df_week.iloc[-3]["ema_short"]) else "低于"}前一周
+- **MACD线值**：{this_week["macd"]:.2f}
+- **MACD信号线值**：{this_week["signal"]:.2f}
+- **MACD柱状图值**：{this_week["hist"]:.2f}，斜率：{analysis["week_hist_slope"]:.2f}
+
+### 日K线分析数据
+**当前交易日数据**：
+- **日期**：最新交易日
+- **价格数据**：
+  - 开盘：{today["open"]:.2f}
+  - 最高：{today["high"]:.2f}
+  - 最低：{today["low"]:.2f}
+  - 收盘：{today["close"]:.2f}
+  - 涨跌幅：{(today["close"]/yesterday["close"]-1)*100:.2f}%
+- **均线指标**：
+  - 短期EMA：{today["ema_short"]:.2f}，斜率：{analysis["day_short_slope"]:.2f}
+  - 长期EMA：{today["ema_long"]:.2f}，斜率：{analysis["day_long_slope"]:.2f}
+- **MACD指标**：
+  - MACD线：{today["macd"]:.2f}
+  - 信号线：{today["signal"]:.2f}
+  - 柱状图：{today["hist"]:.2f}，斜率：{analysis["day_hist_slope"]:.2f}
+- **成交量**：
+  - 当前交易日：{today["volume"]:.0f}
+  - 前一个交易日：{yesterday["volume"]:.0f}
+  - 变化率：{((today["volume"] - yesterday["volume"]) / yesterday["volume"] * 100):.1f}%
+
+### 历史数据参考
+- **周K线（近20周）**：{df_week[self.columns].tail(20).to_dict(orient="records")}
+- **日K线（近40日）**：{df_day[self.columns].tail(40).to_dict(orient="records")}
+
+---
+
+## 🎯 分析要求
+
+### 三层滤网分析框架
+
+#### **第一层滤网：周线趋势分析（主趋势判断）**
+**目的**：确定市场的核心方向，作为所有交易决策的基础。
+
+**分析要点**：
+1. **EMA趋势分析**：
+   - 位置关系：短期EMA vs. 长期EMA（多头/空头排列）
+   - 斜率变化：趋势加速/减速信号
+   - 关键点：短期EMA斜率改善是趋势可能转变的早期信号
+
+2. **MACD动量分析**：
+   - MACD线与信号线相对位置
+   - 柱状图方向与斜率变化
+   - 动量加速/衰竭信号识别
+
+3. **综合趋势判断**：
+   - 明确趋势方向（上涨/下跌/震荡）
+   - 评估趋势强度与可持续性
+   - 识别趋势衰竭或反转信号
+
+#### **第二层滤网：日线逆势机会（交易机会筛选）**
+**目的**：在主要趋势方向下寻找高质量的逆势交易机会或趋势确认信号。
+
+**分析要点**：
+1. **EMA与价格关系**：
+   - 日线EMA排列状态
+   - 股价相对于短期EMA的位置
+   - 均线斜率变化
+
+2. **MACD动量与背离**：
+   - 日线MACD状态
+   - 寻找价格与MACD的背离信号
+   - 评估动量变化
+
+3. **价格行为与成交量**：
+   - K线形态识别（锤头线、吞没形态、十字星等）
+   - 成交量分析（放量/缩量、成交量变化率）
+   - 价格与关键位关系
+
+#### **第三层滤网：入场时机筛选（精准择时）**
+**目的**：确定具体入场点，评估风险收益比，制定交易计划。
+
+**分析要点**：
+1. **关键价位识别**：
+   - 支撑位识别（前期低点、成交密集区、长期EMA、布林带下轨）
+   - 阻力位识别（前期高点、成交密集区、长期EMA、布林带上轨）
+   - 关键突破位识别
+
+2. **风险指标评估**：
+   - 超买/超卖状态（如RSI、KDJ数据可用则使用）
+   - 波动率评估
+   - 市场情绪指标
+
+3. **多时间框架共振**：
+   - 评估周线、日线信号一致性
+   - 识别多时间框架共振信号
+   - 评估信号强度与可靠性
+
+4. **风险收益比评估**：
+   - 基于关键价位计算潜在盈亏比
+   - 评估交易机会的性价比
+
+---
+
+## ⚖️ 综合评分系统
+
+### 评分范围：[-1, 1]
+- **-1.0 至 -0.6**：强烈看跌
+- **-0.6 至 -0.2**：温和看跌
+- **-0.2 至 0.2**：中性震荡
+- **0.2 至 0.6**：温和看涨
+- **0.6 至 1.0**：强烈看涨
+
+### 评分考量维度与权重
+| 维度 | 权重 | 评估要点 |
+|------|------|----------|
+| **周线趋势方向** | 40% | EMA排列、MACD动量、趋势强度 |
+| **日线动量与结构** | 30% | MACD状态、K线形态、成交量配合 |
+| **关键价位与风险** | 20% | 支撑阻力有效性、风险收益比 |
+| **风险指标状态** | 10% | 超买超卖、波动率、市场情绪 |
+
+### 评分标准细则
+1. **强烈看跌 (-1.0 ~ -0.6)**：
+   - 周线明确下跌趋势，EMA空头排列
+   - MACD处于零轴下方且柱状图扩大
+   - 日线无有效反弹信号，价格位于关键阻力下方
+   - 成交量配合下跌放大
+
+2. **温和看跌 (-0.6 ~ -0.2)**：
+   - 周线下跌趋势，但出现减速信号
+   - MACD可能显示动量衰竭
+   - 日线可能出现超卖但反弹无力
+   - 整体仍处弱势格局
+
+3. **中性震荡 (-0.2 ~ 0.2)**：
+   - 周线与日线方向不明
+   - EMA相互缠绕，无明显趋势
+   - 价格在关键区间内震荡
+   - 成交量萎缩，市场观望情绪浓厚
+
+4. **温和看涨 (0.2 ~ 0.6)**：
+   - 周线下跌趋势出现衰竭或上涨趋势初期
+   - MACD出现金叉或柱状图转正
+   - 日线形成明确看涨结构（如放量突破）
+   - 风险收益比相对有利
+
+5. **强烈看涨 (0.6 ~ 1.0)**：
+   - 周线上涨趋势明确，EMA多头排列
+   - MACD处于零轴上方且柱状图扩大
+   - 日线给出强势买入信号，成交量配合
+   - 多时间框架共振看涨
+
+---
+
+## 📤 输出要求
+
+### 输出格式规范
+**请严格按照以下结构和Markdown格式输出分析结果：**
+
+#### 第一层滤网分析（周线趋势）
+*   **EMA分析结论**：[基于短期EMA={this_week["ema_short"]:.2f}, 长期EMA={this_week["ema_long"]:.2f}，短期斜率={analysis["week_short_slope"]:.2f}, 长期斜率={analysis["week_long_slope"]:.2f}，得出...]
+*   **MACD分析结论**：[基于MACD线={this_week["macd"]:.2f}, 信号线={this_week["signal"]:.2f}，柱状图={this_week["hist"]:.2f}，斜率={analysis["week_hist_slope"]:.2f}，得出...]
+*   **周线趋势综合判断**：[明确趋势方向及强度，如"主下跌趋势，但出现动量衰竭迹象"]
+
+#### 第二层滤网分析（日线机会）
+*   **EMA与价格分析**：[基于日线短期EMA={today["ema_short"]:.2f}, 长期EMA={today["ema_long"]:.2f}，分析日线EMA排列、股价与均线关系]
+*   **MACD与动量分析**：[基于日线MACD线={today["macd"]:.2f}, 信号线={today["signal"]:.2f}，分析日线MACD状态，有无背离信号]
+*   **K线形态与成交量**：
+    *   形态：[基于开盘{ today["open"]:.2f}，最高{ today["high"]:.2f}，最低{ today["low"]:.2f}，收盘{ today["close"]:.2f}，分析具体K线形态描述及技术含义]
+    *   成交量：[当日成交量{ today["volume"]:.0f}，较前日变化{ ((today["volume"] - yesterday["volume"]) / yesterday["volume"] * 100):.1f}%，分析其市场含义]
+*   **日线机会综合判断**：[明确机会类型，如"超跌后的技术性反弹机会"]
+
+#### 第三层滤网分析（入场时机）
+*   **关键价位识别**：
+    *   支撑位：[基于历史数据识别1-2个关键支撑位及理由]
+    *   阻力位：[基于历史数据识别1-2个关键阻力位及理由]
+*   **风险指标评估**：
+    *   超买/超卖：[基于历史数据中的RSI、KDJ等指标状态分析]
+    *   波动率：[基于历史价格波动分析当前波动状态]
+*   **多框架综合与评估**：
+    *   信号一致性：[周线与日线信号是否共振]
+    *   风险收益比：[基于关键位距离评估潜在盈亏比]
+    *   交易倾向：[顺势入场/逆势搏反弹/观望]
+
+#### 综合评分
+基于以上三层滤网分析，{today["symbol"]}未来一周价格走势的综合评分为：
+
+<score>[精确到小数点后一位的数字，范围-1.0到1.0]</score>
+
+---
+
+## 📝 使用说明
+
+### 分析流程
+1. **数据检查**：确认提供的数据完整性和合理性
+2. **逐层分析**：严格按照三层滤网顺序进行分析
+3. **交叉验证**：检查不同指标间的信号一致性
+4. **综合评估**：整合所有信息给出最终评分
+5. **格式化输出**：按指定格式整理分析结果
+
+### 注意事项
+1. **客观性原则**：所有结论必须有具体数据支撑
+2. **风险提示**：识别并注明分析中的不确定性
+3. **逻辑一致性**：确保各层滤网分析逻辑连贯
+4. **格式规范**：严格遵守输出格式要求
+
+---
+**现在，请基于上述数据和框架开始你的专业分析。**
+"""
+
+
         return f"""
 你是一名专业的量化分析师，擅长通过技术形态识别股价趋势。  
 请严格根据以下数据进行分析：
 ### 三层滤网策略详细分析
 ### 股票信息
-- 股票代码：{today["symbol"]}, 国家：{today["country"]}, 行业：{today["industry"]}, 板块：{today["sector"]}, 价格：{json.loads(analysis["stock_info"])["currentPrice"]}, 52周最高价：{today["fifty_two_week_high"]}, 52周最低价：{today["fifty_two_week_low"]}, 做空率：{today["short_ratio"]}
+- 股票代码：{today["symbol"]}, 国家：{today["country"]}, 行业：{today["industry"]}, 板块：{today["sector"]}
 
 ### 周K线分析
 - 周EMA均线指标：当前交易周短期EMA为{this_week["ema_short"]:.2f}, 长期EMA为{this_week["ema_long"]:.2f}, 短期EMA斜率为{analysis["week_short_slope"]:.2f}, 长期EMA斜率{analysis["week_long_slope"]:.2f}, 短期EMA{"高于" if this_week["ema_short"]>this_week["ema_long"] else "低于"}长期EMA, 短期EMA斜率{"高于" if analysis["week_short_slope"]>analysis["week_long_slope"] else "低于"}长期EMA斜率, 前一交易周短期EMA斜率为{last_week["ema_short"] - df_week.iloc[-3]["ema_short"]:.2f}, 当前交易周短期EMA斜率{"高于" if analysis["week_short_slope"] > (last_week["ema_short"] - df_week.iloc[-3]["ema_short"]) else "低于"}前一时间点短期EMA斜率；
@@ -525,6 +761,7 @@ if __name__ == "__main__":
     #helper.analysis("MSTX", "2025-10-30", update=False)
 
     cp = Checkpoint("./.quant_ckpt")
+    cp = None
     for symbol in symbols:
         helper.update(symbol, days, update=update, cp=cp)
     

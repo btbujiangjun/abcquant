@@ -41,7 +41,7 @@ class Indicators:
         rs = ma_up / ma_down.replace(0, np.nan) # 防止除以0
         rsi = 100 - (100 / (1 + rs))
         
-        return rsi.fillna(50) # 填充初始 NaN 值
+        return rsi.fillna(50) # 默认填充 50 中性值
 
     @staticmethod
     def bbands(df: pd.DataFrame, period: int = 20, std_dev: int = 2, column: str = 'close'):
@@ -49,13 +49,13 @@ class Indicators:
         计算布林带 (Bollinger Bands)
         返回: (中轨, 上轨, 下轨)
         """
-        mid = df[column].rolling(window=period).mean()
-        std = df[column].rolling(window=period).std()
+        mid = df[column].rolling(window=period, min_periods=1).mean()
+        std = df[column].rolling(window=period, min_periods=1).std()
         
         upper = mid + (std * std_dev)
         lower = mid - (std * std_dev)
         
-        return mid, upper, lower
+        return mid, upper.fillna(mid), lower.fillna(mid)
 
     @staticmethod
     def atr(df: pd.DataFrame, period: int = 14):
@@ -65,6 +65,8 @@ class Indicators:
         """
         high, low, prev_close = df['high'], df['low'], df['close'].shift(1)
         tr = pd.concat([high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1).max(axis=1)
+        # ATR 应该使用 Wilder 的平滑方式 (alpha=1/N)
+        return tr.ewm(alpha=1/period, adjust=False).mean().ffill()
         return tr.rolling(window=period).mean()
 
     @staticmethod
@@ -73,12 +75,14 @@ class Indicators:
         计算 KDJ 指标
         返回: (K值, D值, J值)
         """
-        low_list = df['low'].rolling(window=n).min()
-        high_list = df['high'].rolling(window=n).max()
+        low_list = df['low'].rolling(window=n, min_periods=1).min()
+        high_list = df['high'].rolling(window=n, min_periods=1).max()
         
-        # 计算 RSV (未成熟随机值)
+        # 计算 RSV
         rsv = (df['close'] - low_list) / (high_list - low_list) * 100
-        
+        # 如果 diff 为 0，通常 RSV 维持在 50
+        rsv = rsv.fillna(50)       
+ 
         # K, D 分别是 RSV 和 K 的 EMA
         k = rsv.ewm(com=m1-1, adjust=False).mean()
         d = k.ewm(com=m2-1, adjust=False).mean()
