@@ -72,11 +72,11 @@ async def tradesignal_page(request: Request):
 
 
 @app.get("/systemtool")
-async def tradesignal_page(request: Request):
+async def systemtool_page(request: Request):
     return templates.TemplateResponse("systemtool.html", {"request": request, "page":"systemtool", "title":"📊系统工具"})
 
 @app.get("/api/systemtool")
-async def tradesignal(
+async def systemtool(
     cli: str = Query(...),
     database: str = Query(...),
     datatable: Optional[str] = Query(None),

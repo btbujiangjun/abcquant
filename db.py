@@ -254,7 +254,7 @@ class QuantDB:
         return self.db.update_sql("DELETE FROM strategy_pool WHERE id = ?", (id,)) 
 
     def fetch_strategy_signal(self, symbol: str):
-        sql = "SELECT symbol, strategy_name, strategy_class, param_config, perf, equity_df FROM strategy_signal WHERE symbol = ?"
+        sql = "SELECT a.symbol, a.strategy_name, a.strategy_class, param_config, perf, equity_df FROM strategy_signal a, strategy_pool b on a.strategy_class = b.strategy_class WHERE a.symbol = ?"
         df = self.db.query(sql, (symbol,))
         results = []
         for _, row in df.iterrows():
