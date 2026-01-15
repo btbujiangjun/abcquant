@@ -755,12 +755,12 @@ class StrategyHelper():
 if __name__ == "__main__":
     from quant.llm import ModelScopeClinet
     symbols, update, days = CRITICAL_STOCKS_US, True, 1200
-    symbols, update, days = ['BTC-USD'], True, 20
+    #symbols, update, days = ['BTC-USD'], True, 20
     helper = StrategyHelper(ModelScopeClinet(), QuantDB())
     #helper.analysis("MSTX", "2025-10-30", update=False)
 
     cp = Checkpoint("./.quant_ckpt")
-    cp = None
+    #cp = None
     for symbol in symbols:
         helper.update(symbol, days, update=update, cp=cp)
     

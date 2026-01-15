@@ -46,7 +46,7 @@ class Checkpoint:
             self._write()
 
     def seek(self, data: dict) -> bool:
-        is_same = (data == self.data)
+        is_same = not self.data or (data == self.data)
 
         if is_same:
             self.hit = True
