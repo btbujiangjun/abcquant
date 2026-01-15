@@ -48,7 +48,7 @@ class Strategy:
 
     def quant(self, 
             symbol: str, 
-            day_peroid: int=200, 
+            day_peroid: int=400, 
             week_peroid: int=50,
             date: str=None
         ) -> str:
@@ -73,7 +73,7 @@ class Strategy:
         
         # 3. 股票基本信息
         stock_info = self.db.query_stock_info(symbol)
-        stock_info = stock_info["info"].iat[0] if isinstance(stock_info, pd.DataFrame) and not stock_info.empty else ""
+        stock_info = stock_info["info"].iat[0] if isinstance(stock_info, pd.DataFrame) and not stock_info.empty else "{}"
         try:
             data = json.loads(stock_info)
             #用周期内最后一天收盘价格替换实时价格数据，避免数据错乱
@@ -98,7 +98,7 @@ class Strategy:
 
         # 6. 构造 prompt
         prompt = self.build_prompt(analysis)
-        logger.info(prompt)
+        logger.debug(prompt)
 
         # 7. 调用 LLM
         report = self.llm.chat(prompt)
@@ -167,7 +167,6 @@ class ThreeFilterStrategy(Strategy):
         this_week, last_week = analysis["this_week"], analysis["last_week"]
         df_day, df_week = analysis["df_day"], analysis["df_week"]
 
-
         return f"""
 ## 👤 角色设定
 你是一位专业的量化分析师，专注于技术分析与量化策略开发。你精通三层滤网交易系统（Three Screen Trading System），擅长：
@@ -218,7 +217,7 @@ class ThreeFilterStrategy(Strategy):
 - **成交量**：
   - 当前交易日：{today["volume"]:.0f}
   - 前一个交易日：{yesterday["volume"]:.0f}
-  - 变化率：{((today["volume"] - yesterday["volume"]) / yesterday["volume"] * 100):.1f}%
+  - 变化率：{(today["volume"] - yesterday["volume"]) * 100 / (yesterday["volume"] or 1):.1f}%
 
 ### 历史数据参考
 - **周K线（近20周）**：{df_week[self.columns].tail(20).to_dict(orient="records")}
@@ -358,7 +357,7 @@ class ThreeFilterStrategy(Strategy):
 *   **MACD与动量分析**：[基于日线MACD线={today["macd"]:.2f}, 信号线={today["signal"]:.2f}，分析日线MACD状态，有无背离信号]
 *   **K线形态与成交量**：
     *   形态：[基于开盘{ today["open"]:.2f}，最高{ today["high"]:.2f}，最低{ today["low"]:.2f}，收盘{ today["close"]:.2f}，分析具体K线形态描述及技术含义]
-    *   成交量：[当日成交量{ today["volume"]:.0f}，较前日变化{ ((today["volume"] - yesterday["volume"]) / yesterday["volume"] * 100):.1f}%，分析其市场含义]
+    *   成交量：[当日成交量{ today["volume"]:.0f}，较前日变化{(today["volume"] - yesterday["volume"]) * 100 / (yesterday["volume"] or 1):.1f}%，分析其市场含义]
 *   **日线机会综合判断**：[明确机会类型，如"超跌后的技术性反弹机会"]
 
 #### 第三层滤网分析（入场时机）
@@ -756,7 +755,7 @@ class StrategyHelper():
 if __name__ == "__main__":
     from quant.llm import ModelScopeClinet
     symbols, update, days = CRITICAL_STOCKS_US, True, 1200
-    #symbols, update, days = ['SQQQ'], True, 2
+    symbols, update, days = ['BTC-USD'], True, 20
     helper = StrategyHelper(ModelScopeClinet(), QuantDB())
     #helper.analysis("MSTX", "2025-10-30", update=False)
 
