@@ -158,7 +158,7 @@ class VolatilityLLMStrategy(LLMStrategy):
         df = self.data.copy()
         # 计算日内波动率 (High-Low)/Close
         df['vol'] = (df['high'] - df['low']) / df['close']
-        df['vol_ma'] = df['vol'].rolling(self.period).mean()
+        df['vol_ma'] = df['vol'].rolling(self.period, min_periods=1).mean()
 
         # 信号：分数够高 且 最近波动率不太离谱
         df['signal'] = np.where((df['score'] >= self.buy_score) & (df['vol_ma'] < self.vol_threshold), 1, 
@@ -212,7 +212,7 @@ class VolumePriceStrategy(BaseStrategy):
     def generate_signals(self):
         df = self.data.copy()
         # 计算成交量均线
-        vol_ma = df['volume'].rolling(self.vol_period).mean()
+        vol_ma = df['volume'].rolling(self.vol_period, min_periods=1).mean()
         # 计算价格变化率
         price_change = df['close'].pct_change(self.price_period)
 
@@ -254,7 +254,7 @@ class MagicNineStrategy(BaseStrategy):
 
         # 2. 计算连续计数的逻辑函数 (向量化 + 循环优化)
         def _get_sequential_counts(series):
-            counts = np.zeros(len(series))
+            counts = np.zeros(len(series), dtype=int)
             cur = 0
             for i, val in enumerate(series):
                 if val:
@@ -294,10 +294,10 @@ class DualThrustStrategy(BaseStrategy):
         df = self.data.copy()
         
         # 计算过去 N 天的最高价、最低价、收盘价
-        hh = df['high'].rolling(self.period).max().shift(1)
-        hc = df['close'].rolling(self.period).max().shift(1)
-        lc = df['close'].rolling(self.period).min().shift(1)
-        ll = df['low'].rolling(self.period).min().shift(1)
+        hh = df['high'].rolling(self.period, min_periods=1).max().shift(1)
+        hc = df['close'].rolling(self.period, min_periods=1).max().shift(1)
+        lc = df['close'].rolling(self.period, min_periods=1).min().shift(1)
+        ll = df['low'].rolling(self.period, min_periods=1).min().shift(1)
         
         # 核心逻辑：Range = max(HH-LC, HC-LL)
         df['range'] = np.maximum(hh - lc, hc - ll)
@@ -329,13 +329,13 @@ class DonchianStrategy(BaseStrategy):
         df = self.data.copy()
         
         # 入场线：过去 n1 天的最高/最低
-        df['upper_in'] = df['high'].rolling(self.n1).max().shift(1)
-        df['lower_in'] = df['low'].rolling(self.n1).min().shift(1)
+        df['upper_in'] = df['high'].rolling(self.n1, min_periods=1).max().shift(1)
+        df['lower_in'] = df['low'].rolling(self.n1, min_periods=1).min().shift(1)
         
         # 离场线：过去 n2 天的最低价 (多头离场)
-        df['exit_long'] = df['low'].rolling(self.n2).min().shift(1)
+        df['exit_long'] = df['low'].rolling(self.n2, min_periods=1).min().shift(1)
         
-        signals = np.zeros(len(df))
+        signals = np.zeros(len(df), dtype=int)
         in_position = False
         
         # 由于涉及持仓状态锁定，这里使用循环更严谨
@@ -346,12 +346,10 @@ class DonchianStrategy(BaseStrategy):
         for i in range(1, len(df)):
             if not in_position:
                 if close[i] > upper_in[i]:
-                    signals[i] = 1
-                    in_position = True
+                    signals[i], in_position = 1, True
             else:
                 if close[i] < exit_long[i]:
-                    signals[i] = -1
-                    in_position = False
+                    signals[i], in_position = -1, False
                     
         df['signal'] = signals
         self.signals = df
@@ -372,11 +370,11 @@ class MeanReversionStrategy(BaseStrategy):
         df = self.data.copy()
         
         # 计算移动平均和标准差
-        df['ma'] = df['close'].rolling(self.period).mean()
-        df['std'] = df['close'].rolling(self.period).std()
+        df['ma'] = df['close'].rolling(self.period, min_periods=1).mean()
+        df['std'] = df['close'].rolling(self.period, min_periods=2).std()
         
         # 计算 Z-Score: (价格 - 均值) / 标准差
-        df['zscore'] = (df['close'] - df['ma']) / df['std']
+        df['zscore'] = ((df['close'] - df['ma']) / df['std']).fillna(0)
         
         # 信号：极高位做空，极低位做多
         df['signal'] = np.where(df['zscore'] < -self.threshold, 1,
@@ -471,7 +469,7 @@ class TripleBarrierLLMStrategy(LLMStrategy):
 
     def generate_signals(self):
         df = self.data.copy()
-        ma_long = df['close'].rolling(self.ma_period).mean()
+        ma_long = df['close'].rolling(self.ma_period, min_periods=1).mean()
         rsi = Indicators.rsi(df, self.rsi_period)
 
         # 屏障1: 价格在长线均线之上 (大趋势向上)
@@ -498,7 +496,7 @@ class AdaptiveVolStrategy(BaseStrategy):
         df = self.data.copy()
         # 计算 ATR 的历史百分位
         df['atr'] = Indicators.atr(df, self.atr_period)
-        df['atr_rank'] = df['atr'].rolling(self.window).apply(lambda x: pd.Series(x).rank(pct=True).iloc[-1])
+        df['atr_rank'] = df['atr'].rolling(self.window, min_periods=1).apply(lambda x: pd.Series(x).rank(pct=True).iloc[-1])
 
         # 逻辑：当 ATR 处于历史低位（地量）后开始抬头，且价格上涨
         # 这通常是“横盘结束，选择方向”的时刻
@@ -528,7 +526,7 @@ class ATRStopLLMStrategy(LLMStrategy):
         df = self.data.copy()
         df['atr'] = Indicators.atr(df, self.period).bfill()
         
-        signals = np.zeros(len(df))
+        signals = np.zeros(len(df), dtype=int)
         stop_prices = np.full(len(df), np.nan) # 记录止损线用于观察
         
         in_position = False

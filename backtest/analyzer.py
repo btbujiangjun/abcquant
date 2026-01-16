@@ -20,10 +20,12 @@ class Analyzer:
     def performance(df: pd.DataFrame) -> Dict[str, Any]:
         """
         计算回测表现指标
-        :param df: 包含 'equity' (净值) 和 'ops' (操作: BUY/SELL/空字符串) 的 DataFrame
+        :param df: 包含 'equity' (净值) 和 'ops' (操作: BUY/SELL/HOLD) 的 DataFrame
         """
         if df is None or df.empty or 'ops' not in df or 'equity' not in df:
             return asdict(PerformanceMetrics())
+
+        print(df)        
 
         # 1. 基础数据准备
         equity = df['equity'].to_numpy(dtype=np.float64)
@@ -32,8 +34,7 @@ class Analyzer:
         
         # 2. 交易状态与按笔盈亏逻辑
         trade_count, trade_win_rate, last_trade_pnl = 0, 0.0 , 0.0
-        current_pos = PositionStatus.EMPTY.value
-        is_in_pos = False
+        current_pos, is_in_pos = PositionStatus.EMPTY.value, False
 
         if 'ops' in df.columns:
             # 获取买入和卖出的索引位置
