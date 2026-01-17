@@ -25,8 +25,6 @@ class Analyzer:
         if df is None or df.empty or 'ops' not in df or 'equity' not in df:
             return asdict(PerformanceMetrics())
 
-        print(df)        
-
         # 1. 基础数据准备
         equity = df['equity'].to_numpy(dtype=np.float64)
         total_days = len(equity)

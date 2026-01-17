@@ -48,7 +48,6 @@ class EnsembleEngine:
             logger.warning("Ensemble strategy error:data provided")
             return {}
 
-
         # 1. 数据预处理
         names = list(strategy_results.keys())
         trace = {name: {} for name in names}
@@ -124,11 +123,13 @@ class EnsembleEngine:
         
         # 建议仓位 = 信号强度(确认度) * 凯利建议值(下注额度) * 风险偏好
         raw_pos_size = ensemble_signal * kelly_f * self.target_risk_ratio
-        suggested_pos = np.clip(
+        granularity = 0.05
+        suggested_pos = round(np.clip(
             raw_pos_size, 
             0 if self.is_long_only else -self.max_leverage, 
             self.max_leverage
-        )
+        ) / granularity) * granularity
+
 
         # 6. 执行逻辑判定
         # 换手抑制：如果新建议仓位与旧仓位差异极小，则维持现状(HOLD)，避免手续费摩擦
