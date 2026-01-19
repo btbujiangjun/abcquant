@@ -138,7 +138,7 @@ class QuantDB:
         table_ddl = [
             "CREATE TABLE IF NOT EXISTS stock_price (id INTEGER PRIMARY KEY, symbol TEXT NOT NULL, date TEXT NOT NULL, interval TEXT NOT NULL, open REAL, high REAL, low REAL, close REAL, volume INTEGER, amount REAL, UNIQUE(symbol, date, interval))",
             "CREATE TABLE IF NOT EXISTS news (id INTEGER PRIMARY KEY, symbol TEXT, title TEXT NOT NULL, link TEXT NOT NULL UNIQUE, source TEXT, publish_date TEXT)",
-            "CREATE TABLE IF NOT EXISTS stock_base (id INTEGER PRIMARY KEY, symbol TEXT, name TEXT, exchange TEXT, status TEXT, UNIQUE(symbol, exchange))",
+            "CREATE TABLE IF NOT EXISTS stock_base (symbol TEXT, name TEXT, pinyin TEXT, mkt_cap DOUBLE, exchange TEXT, status TEXT, UNIQUE(symbol, exchange))",
             "CREATE TABLE IF NOT EXISTS stock_info (symbol TEXT, status TEXT, market_cap DOUBLE, current_price DOUBLE, fifty_two_week_high DOUBLE, fifty_two_week_low DOUBLE, all_time_high DOUBLE, all_time_low DOUBLE, short_ratio DOUBLE, country TEXT, industry TEXT, sector TEXT, quote_type TEXT, recommendation TEXT, info TEXT, update_time TEXT, UNIQUE(symbol))",
             "CREATE TABLE IF NOT EXISTS analysis_report (symbol TEXT, date TEXT, three_filters_score double, three_filters_report TEXT, double_bottom_score double, double_bottom_report TEXT, double_top_score double, double_top_report TEXT, cup_handle_score double, cup_handle_report TEXT, update_time TEXT, UNIQUE(symbol, date))",
             "CREATE TABLE IF NOT EXISTS strategy_pool (id INTEGER PRIMARY KEY, strategy_name TEXT, strategy_class TEXT, param_configs TEXT, UNIQUE(strategy_class, param_configs))",
@@ -166,11 +166,11 @@ class QuantDB:
         self.db.update_sql("UPDATE stock_base SET status = ? WHERE symbol = ?", (status, symbol))
 
     def query_stock_base(self, exchange: str = None, top_k: int = None):
-        sql = "SELECT a.symbol, a.name, b.market_cap FROM stock_base a LEFT JOIN stock_info b ON a.symbol = b.symbol WHERE a.symbol IS NOT NULL AND a.status != '0'"
+        sql = "SELECT a.symbol, a.name, a.pinyin, a.exchange, max(a.mkt_cap, b.market_cap) as mkt_cap FROM stock_base a LEFT JOIN stock_info b ON a.symbol = b.symbol WHERE a.symbol IS NOT NULL AND a.status != '0'"
         params = []
         if exchange:
             sql += " AND a.exchange = ?"; params.append(exchange)
-        sql += " ORDER BY CAST(b.market_cap AS FLOAT) ASC"
+        sql += " ORDER BY CAST(b.market_cap AS FLOAT) DESC, a.mkt_cap DESC"
         if top_k: sql += f" LIMIT {int(top_k)}"
         df = self.db.query(sql, tuple(params))
         if not df.empty and "market_cap" in df.columns:
@@ -347,6 +347,8 @@ class TradeDB:
         return {r['symbol']: {'qty': r['qty'], 'cost': r['cost_price']} for _, r in df.iterrows()}
 
 if __name__ == '__main__':
+    d = DB(db_path="./data/quant_data.db")
+    d.ddl("DROP TABLE stock_base")
     db = QuantDB()
     db.init_db()
     df = db.query_stock_base(top_k=5)

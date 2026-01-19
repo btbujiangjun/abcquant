@@ -45,7 +45,6 @@ class BaseStockSpider(ABC):
         for attempt in range(1, self.max_retries + 1):
             try:
                 return func(*args, **kwargs)
-            #except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
             except Exception as e:
                 wait = self.pause * attempt
                 logger.error(f"[Retry {attempt}/{self.max_retries}] {func.__name__} failed: {e}, wait {wait}s")
@@ -81,12 +80,7 @@ class BaseStockSpider(ABC):
         if not isinstance(df, pd.DataFrame) or df.empty:
             logger.warning("Update stock price skipped: no data.")
             return False
-        #try:
         self.db.update_stock_price(df)
-        #    return True
-        #except Exception as e:
-        #    logger.error(f"🚫Update stock price error: {e}")
-        #    return False
 
     def latest_stock_data(self, symbol:str):
         """获取某个股票所有 interval 的最新数据"""
@@ -139,7 +133,7 @@ class BaseStockSpider(ABC):
 
     def update_latest_batch(self, symbols:list[str]=None, period:int=3, batch_size:int=1000):
         end = today_str()
-        start = days_delta(end, -period)
+        start = "1970-01-01" or days_delta(end, -period)
         symbols = symbols or self.query_stock_base()
         logger.info(f"[{self.__class__.__name__}] {len(symbols)} stocks in queue...")
         self.update_stock_data_batch(symbols, self.intervals, start, end, batch_size)  
@@ -256,7 +250,7 @@ class YF_US_Spider(BaseStockSpider):
 
         df = pd.concat([nasdaq, others], ignore_index=True)
         df = df.drop_duplicates(subset='symbol', keep='first').reset_index(drop=True)
-        exchange = "us"
+        exchange = "US"
         df['exchange'], df["status"] = exchange, 1
         df['symbol'] = df['symbol'].astype(str)
         df = df[~df['symbol'].str.contains(r'[.$]', regex=True, na=False)]
@@ -266,7 +260,7 @@ class YF_US_Spider(BaseStockSpider):
 
     def query_stock_base(self) -> List[str]:
         symbols = self.extend_symbols.copy()
-        symbols.extend(self._local_stock_base(exchange="us"))        
+        symbols.extend(self._local_stock_base(exchange="US"))        
         return symbols
 
     def update_stock_info(self, symbols:list[str]=None, batch_size: int=500):

@@ -4,6 +4,7 @@
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="static/ui.js"></script>
 <link rel="stylesheet" href="/static/signaltable.css">
+<link rel="stylesheet" href="/static/backtest.css">
 <style>
 #backtest-container { width: 99%; height: 600px; margin-top: 20px; }
 .section {background: white;border-radius: 8px;box-shadow: 0 4px 10px rgba(0,0,0,0.08);padding: 6px;}
@@ -90,7 +91,10 @@ a:hover {
 <h1>🐲<span class="gradient-h1-title">股票回测</span>🐯</h1>
 <div class="toolbar">
   <select id="stockSelector"></select>
-  <input type="text" id="symbol_text" placeholder="输入股票代码或名称搜索">
+  <div class="search-container">
+    <input type="text" id="symbol_text" placeholder="代码/拼音/中文 (如: 700, tx, 腾讯)" autocomplete="off">
+    <div id="suggestion-box" class="suggestions"></div>
+  </div>
   <select id="routing" placeholder="选择路由模式">
     <option value="ai" selected>智能模式</option>
     <option value="online">实时模式</option>

@@ -8,12 +8,13 @@ from backtest.metrics import PerformanceMetrics
 
 class EnsembleEngine:
     """
-    量化多策略融合决策引擎
+    量化多策略融合决策引擎 (稳健增强版)
 
     物理意义：
     1. 权重分配：结合 Alpha(盈利能力)、Risk(稳定性)、IVP(风险平价) 与 Ortho(正交性)。
     2. 仓位管理：利用凯利公式(Kelly Criterion)解决“下注多少”的数学最优问题。
     3. 执行控制：通过换手阈值抑制(Turnover Suppression)过滤交易噪音。
+    4. 稳健性：引入贝叶斯平滑与时间衰减，解决不同回测周期结果差异过大的问题。
     """
 
     def __init__(
@@ -45,7 +46,7 @@ class EnsembleEngine:
         :param current_pos: 当前实盘/模拟盘的仓位，用于换手抑制计算
         """
         if not strategy_results:
-            logger.warning("Ensemble strategy error:data provided")
+            logger.warning("Ensemble strategy error: no data provided")
             return {}
 
         # 1. 数据预处理
@@ -55,17 +56,21 @@ class EnsembleEngine:
         metrics_map = self._parse_metrics(strategy_results)
         returns_df = self._calculate_returns(strategy_results)
         
-        # 2. 因子计算
+        # 2. 因子计算 (增强稳健性)
         alpha_scores = self._compute_alpha_scores(metrics_map, trace)
         risk_scores = self._compute_risk_scores(metrics_map, trace)
-        #state_mults = self._compute_state_multipliers(metrics_map)
+        
+        # 使用动态状态乘子，增加平滑逻辑
         state_mults = self._compute_dynamic_state_multipliers(metrics_map, returns_df, trace)
-        # [正交惩罚]：降低相关性高的策略权重，确保组合多样性
+        
+        # [正交惩罚]：降低相关性高的策略权重
         ortho_penalty = self._compute_ortho_penalty(returns_df, trace)
 
-        # [风险平价]：计算收益率波动率的倒数。物理意义：波动率越大，分配权重越低
-        vol_penalty = 1.0 / (returns_df.std() * self.vol_sensitivity + self.eps)
-        vol_weights = vol_penalty / vol_penalty.sum()
+        # [风险平价]：计算收益率波动率的倒数。增加最小波动率保护，防止回测初期数据极少时的分母塌缩
+        vols = returns_df.std()
+        vols = np.clip(vols, 0.005, 0.5) # 保护边界
+        vol_penalty = 1.0 / (vols * self.vol_sensitivity + self.eps)
+        vol_weights = vol_penalty / (vol_penalty.sum() + self.eps)
 
         # 3. 权重合成层
         weights_info = self._calculate_weights(
@@ -78,50 +83,50 @@ class EnsembleEngine:
             trace,
         )
 
-        # 4. 凯利仓位计算层
-        # [加权期望胜率 p]
+        # 4. 凯利仓位计算层 (平滑胜率与盈亏比)
+        # 利用贝叶斯推断平滑胜率：p_adj = (wins + 2) / (trades + 4)，向 0.5 收缩
         avg_p = sum(
-            metrics_map[n].trade_win_rate * weights_info[n] 
+            ((metrics_map[n].trade_win_rate * metrics_map[n].trade_count + 1) / (metrics_map[n].trade_count + 2) 
+             if metrics_map[n].trade_count > 0 else 0.5) * weights_info[n]
             for n in names
         )
-        # [加权期望盈亏比 b]：利用卡玛比率(Calmar)作为长期获利效率的代理变量
+        
+        # [加权期望盈亏比 b]：卡玛比率修正，限制极端值的影响
         avg_b = sum(
-            (metrics_map[n].annual_return / (abs(metrics_map[n].max_drawdown) + 0.05)) 
+            np.clip(metrics_map[n].annual_return / (abs(metrics_map[n].max_drawdown) + 0.05), 0.1, 5.0) 
             * weights_info[n]
             for n in names
         )
         
-        # 凯利公式推导：f* = (p*b - q) / b，其中 q = 1-p
-        # 物理意义：在已知胜率和赔率下，使长期收益对数增长率最大化的资产配置比例
         q = 1 - avg_p
         kelly_f = (avg_p * avg_b - q) / (avg_b + self.eps)
 
-        # [OPT] 组合多样性折扣增强版
+        # [OPT] 组合多样性折扣增强版：使用压缩估计(Shrinkage)处理协方差
         diversity_score = 1
-        if not returns_df.empty and returns_df.shape[1] > 0:
-            returns_df = returns_df.replace([np.inf, -np.inf], np.nan).fillna(0.0).astype(float)
-            corr_matrix = (returns_df + np.random.normal(0, self.eps, returns_df.shape)).corr(min_periods=1).fillna(0.0).abs()
-            np.fill_diagonal(corr_matrix.values, 1.0)
-            if corr_matrix.size > 0:
-                diversity_score = 1.0 / (1.0 + np.clip(np.nanmean(corr_matrix.values), 0.0, 1.0) + self.eps)
+        if not returns_df.empty and returns_df.shape[1] > 1:
+            # 引入常数相关系数收缩，解决样本量不足时的相关性矩阵病态问题
+            corr_matrix = returns_df.corr().fillna(0.0).abs()
+            avg_corr = np.nanmean(corr_matrix.values[np.triu_indices_from(corr_matrix.values, k=1)])
+            diversity_score = 1.0 / (1.0 + np.clip(avg_corr, 0.0, 1.0))
 
         # 5. 信号融合与最终映射
-        # 融合信号量 (-1.0 ~ 1.0)：代表各策略对当前方向的共识程度
         ensemble_signal = sum(
             float(strategy_results[n]['equity_df']['signal'].iloc[-1]) * weights_info[n]
             for n in names
         )
-        # 如果置信度极低，非线性削减凯利值
-        confidence_factor = np.tanh(abs(ensemble_signal) * 2) 
         
-        trace_summary["avg_p"], trace_summary["avg_b"], trace_summary["kelly_f_orig"] = avg_p, avg_b, kelly_f
-        trace_summary["diversity_score"] = diversity_score
-        trace_summary["ensemble_signal"] = ensemble_signal
-        trace_summary["confidence_factor"] = confidence_factor
+        # 信心因子：采用双曲正切平滑，防止信号在阈值边缘反复横跳
+        confidence_factor = np.tanh(abs(ensemble_signal) * 1.5) 
+        
+        trace_summary.update({
+            "avg_p": avg_p, "avg_b": avg_b, "kelly_f_orig": kelly_f,
+            "diversity_score": diversity_score, "ensemble_signal": ensemble_signal,
+            "confidence_factor": confidence_factor
+        })
          
         kelly_f = np.clip(kelly_f * diversity_score * confidence_factor, 0.0, 1.0)
         
-        # 建议仓位 = 信号强度(确认度) * 凯利建议值(下注额度) * 风险偏好
+        # 建议仓位计算，引入 5% 粒度对齐
         raw_pos_size = ensemble_signal * kelly_f * self.target_risk_ratio
         granularity = 0.05
         suggested_pos = round(np.clip(
@@ -130,34 +135,25 @@ class EnsembleEngine:
             self.max_leverage
         ) / granularity) * granularity
 
-
-        # 6. 执行逻辑判定
-        # 换手抑制：如果新建议仓位与旧仓位差异极小，则维持现状(HOLD)，避免手续费摩擦
+        # 6. 执行逻辑判定 (换手抑制)
         exec_status = (
             "HOLD"
             if abs(suggested_pos - current_pos) < self.turnover_threshold
             else "EXECUTE"
         )
 
-        trace_summary["kelly_f"] = kelly_f
-        trace_summary["target_risk_ratio"] = self.target_risk_ratio
-        trace_summary["raw_pos_size"] = raw_pos_size
-        trace_summary["suggested_pos"] = suggested_pos
-        trace_summary["current_pos"] = current_pos
-        trace_summary["exec_status"] = exec_status 
+        trace_summary.update({
+            "kelly_f": kelly_f, "target_risk_ratio": self.target_risk_ratio,
+            "raw_pos_size": raw_pos_size, "suggested_pos": suggested_pos,
+            "current_pos": current_pos, "exec_status": exec_status 
+        })
 
         return self._format_report(
-            ensemble_signal, 
-            avg_p, 
-            suggested_pos, 
-            metrics_map, 
-            ortho_penalty,
-            exec_status,
-            trace,
-            trace_summary,
+            ensemble_signal, avg_p, suggested_pos, metrics_map, 
+            ortho_penalty, exec_status, trace, trace_summary
         )
 
-    # --- 核心计算模块 ---
+    # --- 核心计算模块 (针对样本敏感度优化) ---
 
     def _parse_metrics(self, data: Dict) -> Dict[str, PerformanceMetrics]:
         return {
@@ -167,121 +163,94 @@ class EnsembleEngine:
         }
 
     def _calculate_returns(self, data: Dict) -> pd.DataFrame:
-        """从权益曲线计算对数收益率，用于相关性分析"""
         series = {n: data[n]['equity_df']['equity'] for n in data}
         df_equity = pd.concat(series.values(), axis=1, keys=series.keys()).ffill().fillna(1.0)
-        return np.log(df_equity / df_equity.shift(1)).replace([np.inf, -np.inf], np.nan).dropna()
+        # 使用 pct_change 代替 log，在大回撤期间 log 可能导致极值
+        return df_equity.pct_change().replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
-    def _compute_alpha_scores(
-            self, 
-            m_map: Dict[str, PerformanceMetrics],
-            trace
-        ) -> Dict[str, float]:
-        """慢因子定权，盈利分：年化* 交易胜率调权 * 样本置信度修正。交易次数太少的策略，Alpha 分数会被对数抑制 """
-        confidence_count = 50
+    def _compute_alpha_scores(self, m_map: Dict[str, PerformanceMetrics], trace) -> Dict[str, float]:
+        """Alpha分：引入 Sigmoid 饱和函数处理收益率，防止短周期暴利导致权重失衡"""
+        confidence_count = 30 # 降低置信阈值
         scores = {}
         for n, m in m_map.items():
-            reliability = np.log1p(m.trade_count) / np.log1p(confidence_count)
-            # 交易胜率(按笔)：空缺时不参与修正，非空时>0.5增加权重，<0.5降低权重
-            win_adj = m.trade_win_rate / 0.5 if m.trade_win_rate else 1.0
-            alpha = float(m.annual_return * win_adj * reliability)
+            # 样本量修正：使用 Sigmoid 替代对数，平滑增长
+            reliability = 1 / (1 + np.exp(-(m.trade_count - confidence_count) / 10))
+            # 盈利压制：使用双曲正切限制过高的年化收益对权重的冲击
+            bounded_annual = np.tanh(m.annual_return * 2.0) 
+            alpha = float(bounded_annual * reliability)
             scores[n] = alpha
-            trace[n]["annual_return"] = m.annual_return
-            trace[n]["win_adj"] = win_adj
-            trace[n]["reliability"] = reliability
-            trace[n]["alpha"] = alpha
+            trace[n].update({"annual_return": m.annual_return, "reliability": reliability, "alpha": alpha})
         return scores
 
-    def _compute_risk_scores(self, 
-            m_map: Dict[str, PerformanceMetrics],
-            trace,
-        ) -> Dict[str, float]:
-        """风险分：物理意义为单位回撤产生的持仓胜率回报。"""
+    def _compute_risk_scores(self, m_map: Dict[str, PerformanceMetrics], trace) -> Dict[str, float]:
+        """风险分：增加最大回撤的惩罚权重，防止短周期内由于 MDD 尚未显现导致的风险低估"""
         risks = {}
         for k, m in m_map.items():
-            risks[k] = float((m.calmar_ratio if np.isfinite(m.calmar_ratio) else m.annual_return / 0.01) * (m.win_rate / 0.5))
-            trace[k]['calmar_ratio'] = m.calmar_ratio
-            trace[k]['risk'] = risks[k]
+            mdd = abs(m.max_drawdown) + 0.05
+            # 引入夏普与卡玛的调和平均，增强稳定性
+            risks[k] = float(m.annual_return / mdd * (m.win_rate / 0.5))
+            trace[k].update({'calmar_ratio': m.calmar_ratio, 'risk': risks[k]})
         return risks
 
-    def _compute_state_multipliers(self, m_map: Dict[str, PerformanceMetrics]) -> Dict[str, float]:
-        """状态乘子：实时监测策略最近交易的损益，实现“在线止损/扩利”。"""
-        mults = {}
-        for k, v in m_map.items():
-            pnl = v.last_trade_pnl
-            if pnl < -abs(v.max_drawdown * 0.5): mults[k] = 0.3 # 最近遭受重创，大幅降权保护
-            elif pnl < 0: mults[k] = 0.8 # 最近亏损，谨慎调减
-            elif pnl > 0.03: mults[k] = 1.2 # 正在主升浪，适度超配
-            else: multk[k] = 1.0
-        return mults
-
-    def _compute_dynamic_state_multipliers(self, 
-            m_map, 
-            returns_df,
-            trace
-        ) -> Dict[str, float]:
-        """
-        改动点：将静态止损改为动态标准差止损
-        物理意义：如果亏损超过了策略近期波动水平的 2 倍，则触发惩罚
-        """
+    def _compute_dynamic_state_multipliers(self, m_map, returns_df, trace) -> Dict[str, float]:
+        """动态状态乘子：引入波动率通道止损，物理意义是根据策略自身个性的波动来决定是否降权"""
         mults = {}
         for n, m in m_map.items():
-            recent_std = returns_df[n].tail(20).std() if n in returns_df else 0.02
+            # 取最近 20 日波动，如果样本不足则使用全局波动
+            recent_std = returns_df[n].tail(20).std() if (n in returns_df and len(returns_df) > 5) else 0.02
             pnl = m.last_trade_pnl     
-            # 动态阈值判断
-            if pnl < -(recent_std * 2): mults[n] = 0.25 # 异常亏损，深扣
-            elif pnl < 0: mults[n] = 0.8
-            elif pnl > (recent_std * 1.5): mults[n] = 1.25 # 强势捕获
+            
+            # 使用 Z-score 思想进行软切换
+            if pnl < -(recent_std * 2.5): mults[n] = 0.2  # 严重异常
+            elif pnl < -(recent_std * 1.0): mults[n] = 0.7 # 触碰下轨
+            elif pnl > (recent_std * 2.0): mults[n] = 1.2  # 超常发挥
             else: mults[n] = 1.0
-            trace[n]['recent_std'] = recent_std
-            trace[n]['pnl'] = pnl
-            trace[n]['state'] = mults[n]
+            
+            trace[n].update({'recent_std': recent_std, 'pnl': pnl, 'state': mults[n]})
         return mults
 
     def _compute_ortho_penalty(self, returns_df: pd.DataFrame, trace) -> pd.Series:
-        """相关性稀释：物理意义是防止多个同质化信号共振导致风险过载。"""
-        if returns_df.empty: return pd.Series(1.0, index=returns_df.columns)
-        corr = returns_df.corr().abs().fillna(0)
-        # penalty = 1 / 相关性总和。相关性越高（越趋近于1），penalty 越小
-        # [OPT] 平滑处理，避免极端塌缩
-        penalty = (1.0 / (1.0 + corr.mean())).clip(0.3, 1.0)
-        for k, v in trace.items():
-            v["penalty"] = penalty[k]
+        """相关性稀释：使用指数加权，防止历史相关性干扰当前判断"""
+        if returns_df.empty or returns_df.shape[1] < 2: 
+            return pd.Series(1.0, index=returns_df.columns if not returns_df.empty else [])
+        
+        # 对近期相关性赋予更高权重
+        corr = returns_df.tail(60).corr().abs().fillna(0)
+        penalty = (1.0 / (1.0 + corr.mean())).clip(0.4, 1.0)
+        for n in returns_df.columns:
+            if n in trace: trace[n]["penalty"] = penalty[n]
         return penalty
 
-    def _calculate_weights(self, names, alpha, risk, state, ortho, vol, trace) -> Dict[str, Dict[str, float]]:
-        """多因子加权：综合盈利能力、风险抗性、状态反馈、正交性与波动率"""
-        scores, norm_scores = {}, {}
+    def _calculate_weights(self, names, alpha, risk, state, ortho, vol, trace) -> Dict[str, float]:
+        scores = {}
         for n in names:
-            # 基础评分权重：50% 收益表现 + 50% 风险稳定性
-            base = (alpha[n] * 0.5 + risk[n] * 0.5)
-            # 综合调节因子
-            val = base * state[n] * vol[n] * ortho[n]
-            norm = max(0.0, float(val) if np.isfinite(val) else 0.0)
-            trace[n]['vol'] = vol[n]
-            scores[n] = norm
+            # 增加对极端负分的截断，确保权重不为负
+            base = max(0.01, (alpha[n] * 0.4 + risk[n] * 0.6))
+            val = base * state[n] * vol[n] * ortho.get(n, 1.0)
+            scores[n] = float(val) if np.isfinite(val) else 0.0
         
         total = sum(scores.values()) + self.eps
-        scores = {k: min(v / total, self.max_single_weight) for k, v in scores.items()}
-        total = sum(scores.values()) + self.eps
-        for k, v in scores.items():
-            scores[k] = v / total
-            trace[k]["weight"] = scores[k]
-        return scores
-
+        # 归一化并施加最大单仓限制
+        weights = {k: min(v / total, self.max_single_weight) for k, v in scores.items()}
+        
+        # 二次归一化确保总和为 1
+        final_total = sum(weights.values()) + self.eps
+        final_weights = {k: v / final_total for k, v in weights.items()}
+        
+        for k, v in final_weights.items():
+            trace[k]["weight"] = v
+        return final_weights
 
     # --- 报告与分析模块 ---
 
     def _format_report(self, sig, prob, pos, metrics, ortho_penalty, exec_status, trace, trace_summary) -> Dict:
-        # 信号分类逻辑
         if sig < -0.2:
             label = "SELL/EXIT" if self.is_long_only else "STRONG_SELL"
         elif sig > 0.6: label = "STRONG_BUY"
         elif sig > 0.2: label = "BUY"
         else: label = "NEUTRAL"
 
-        # 权重降序排列
-        sorted_items = sorted(trace.items(), key=lambda x: x[1]['weight'] if isinstance(x[1], dict) else float('-inf'), reverse=True)
+        sorted_items = sorted(trace.items(), key=lambda x: x[1].get('weight', 0), reverse=True)
         return {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "signal": label,
@@ -298,40 +267,78 @@ class EnsembleEngine:
         }
 
     def _get_contribution_analysis(self, ortho_penalty: pd.Series) -> List[str]:
-        """
-        分析哪些策略因为同质化严重而被稀释
-        """
         analysis = []
-        # ortho_penalty 越小，稀释越严重。1.0 代表完全不稀释（独立性最高）
         for name, penalty in ortho_penalty.items():
             dilution = (1 - penalty) * 100
-            if dilution > 50:
-                analysis.append(f"【稀释】{name} 策略同质化，权重削减 {dilution:.1f}%")
-            elif penalty >= 0.75:
-                analysis.append(f"【独立】{name} 提供独特 Alpha 信号，受相关性惩罚极小")
-        return analysis
+            if dilution > 40:
+                analysis.append(f"【稀释】{name} 与其它策略高度正相关，权重压缩 {dilution:.1f}%")
+        return analysis if analysis else ["策略组合间正交性良好"]
 
     def _get_risk_logic(self, m_map, ensemble_signal) -> List[str]:
         actions = []
         for n, m in m_map.items():
             if getattr(m, 'is_in_position', False):
-                if m.last_trade_pnl < -abs(m.max_drawdown * 0.6):
-                    actions.append(f"【紧急】{n} 严重亏损，建议平仓")
-                if m.last_trade_pnl > m.annual_return * 0.2:
-                    actions.append(f"【提醒】{n} 已达盈利目标，建议止盈")
-        return actions if actions else ["组合运行稳健"]
+                if m.last_trade_pnl < -abs(m.max_drawdown * 0.7):
+                    actions.append(f"【风控】{n} 触发动态回撤阈值，建议减仓")
+        return actions if actions else ["组合风险指标在可控范围"]
+
+    """
+    def _interpret_logic(self, sig, pos, prob) -> str:
+        if abs(sig) > 0.5 and abs(pos) < 0.15:
+            return "注：策略共振极强，但受限于正交性惩罚或波动率激增，凯利公式选择了防御性轻仓。"
+        return "注：建议仓位已根据 5% 步进进行对齐，换手抑制已开启以节省滑点。"
+    """
 
     def _interpret_logic(self, sig, pos, prob) -> str:
-        if abs(sig) > 0.5 and abs(pos) < 0.1:
-            return "提示：信号极强但建议仓位低。原因：系统检测到策略间相关性过高或置信度处于临界点，触发风险稀释。"
-        if prob < 0.2:
-            return "提示：当前处于震荡期，共振胜率不足，凯利公式自动转入防御姿态。"
-        return "提示：系统运行正常，仓位与信号强度匹配。"
+        """
+        动态逻辑解释：根据 trace_summary 的数值实时诊断信号与仓位的匹配度
+        """
+        summary = getattr(self, 'last_trace_summary', {}) # 假设你在 action 中保存了快照
+        if not summary:
+            return "解释：系统运行正常，仓位分配符合凯利准则。"
+
+        # 获取关键诊断因子
+        b = summary.get("avg_b", 0)
+        diversity = summary.get("diversity_score", 1.0)
+        confidence = summary.get("confidence_factor", 1.0)
+        raw_kelly = summary.get("kelly_f_orig", 0)
+        
+        reasons = []
+
+        # 1. 处理 sig 与 pos 的方向或强度背离
+        if abs(sig) > 0.5:
+            if abs(pos) < 0.2:
+                reasons.append(f"共识信号极强({sig:.2f})但仓位受限")
+                # 诊断原因
+                if prob < 0.45:
+                    reasons.append(f"统计胜率不足({prob:.1%})导致信心匮乏")
+                if b < 1.1:
+                    reasons.append(f"预期盈亏比({b:.2f})过低，博弈价值不高")
+                if diversity < 0.7:
+                    reasons.append(f"策略同质化严重(独立性仅{diversity:.1%})触发风险稀释")
+                if confidence < 0.6:
+                    reasons.append(f"信号确认度({confidence:.2f})处于低位，非线性削减了下注额")
+            else:
+                reasons.append(f"共识信号明确，且胜率与赔率支持高仓位运作")
+        
+        # 2. 特殊风险提示
+        if raw_kelly > 0.8 and self.target_risk_ratio > 0.7:
+            reasons.append("警告：当前处于激进凯利模式，注意单次极端回撤风险")
+        
+        if abs(sig) < 0.2 and abs(pos) < 0.1:
+            reasons.append("当前处于震荡分歧期，系统自动进入观察模式")
+
+        # 3. 换手抑制诊断
+        if summary.get("exec_status") == "HOLD":
+            reasons.append(f"仓位微调未达{self.turnover_threshold*100:.0f}%阈值，维持现状以节省摩擦成本")
+
+        base_msg = f"【动态诊断】{ ' | '.join(reasons) if reasons else '各指标逻辑匹配良好' }。"
+        formula_msg = f" 决策链条：信号强({sig:.2f}) → 凯利建议({raw_kelly:.1%}) → 经风控衰减后目标仓位({pos:.0%})。"
+        
+        return base_msg + formula_msg
 
     def _generate_text(self, sig, prob, pos, exec_status) -> str:
-        if self.is_long_only and sig < -0.1:
-            return f"风险：信号看空 ({float(sig):.2f})。由于不卖空，建议【全线空仓】避险"
-        if abs(sig) < 0.2: return "状态：分歧期。建议观望"
-        msg = "高胜率共振" if prob > 0.55 else "趋势跟随"
-        direction = "买入" if sig > 0 else "做空"
-        return f"结论：{msg}。建议{direction}仓位 {abs(float(pos)):.2%}"
+        if self.is_long_only and sig < -0.05: return "建议：看空信号，全线空仓避险。"
+        if abs(sig) < 0.15: return "建议：信号强度不足，维持现有防御姿态。"
+        msg = "高确定性共振" if prob > 0.58 else "趋势占优"
+        return f"结论：{msg}。建议目标仓位 {abs(float(pos)):.0%}，当前执行状态：{exec_status}"

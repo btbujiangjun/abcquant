@@ -57,6 +57,7 @@ class Scheduler:
         #self.scheduler.add_job(daily_job, 'cron', hour=hour, minute=minute)
         #self.scheduler.add_job(daily_job, 'interval', seconds=5, kwargs={'name':'Bob'})
 
+        """
         self.scheduler.add_job(
             hour_job, 
             'interval', 
@@ -70,8 +71,8 @@ class Scheduler:
                 "worker": self.worker,
             }
         )
-
         """
+
         self.scheduler.add_job(
             us_spider_job, 
             "date",
@@ -85,7 +86,6 @@ class Scheduler:
                 "dragon": self.dragon
             }
         )
-        """
 
         """
         self.scheduler.add_job(

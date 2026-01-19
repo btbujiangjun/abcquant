@@ -16,17 +16,19 @@ from utils.time import today_str, days_delta
 
 db_path = "./data/quant_data.db"
 tdb_path = "./data/quant_trade.db"
-db, tdb, dragon, worker = None, None, None, None 
+db, tdb, dragon, worker, searcher = None, None, None, None, None 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global worker, db, tdb, dragon
+    global worker, db, tdb, dragon, searcher
     from db import QuantDB, TradeDB
     from analysis.dragon import Dragon
     from backtest.worker import DynamicWorker
+    from spiders.stockbase import StockBaseSearcher
     worker = DynamicWorker(max_leverage = 1.2, is_long_only = False)
     db = QuantDB(db_path=db_path)
     tdb = TradeDB(db_path=tdb_path)
     dragon = Dragon(db_path=db_path)
+    searcher = StockBaseSearcher()
     yield
 
 app = FastAPI(lifespan=lifespan)
@@ -317,6 +319,9 @@ def get_stock_info(symbol: str):
         "info": row.get("info"),
     }
 
+@app.get("/api/stocks/search")
+async def api_search_stocks(q: str = Query(..., min_length=1)):
+    return searcher.search(q)
 
 if __name__ == "__main__":
     import uvicorn

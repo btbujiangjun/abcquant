@@ -41,6 +41,8 @@ CRITICAL_STOCKS = [
     {"name":"EOSE", "exchange":"us"},
     {"name":"BTC-USD", "exchange":"us"},
     {"name":"VNM", "exchange":"us"},
+    {"name":"IXIC", "exchange":"us"},
+    {"name":"SPX", "exchange":"us"},
 ]
 
 CRITICAL_STOCKS_US = [stock["name"] for stock in CRITICAL_STOCKS if stock["exchange"]=="us"]
@@ -89,11 +91,13 @@ MODELSCOPE_CONFIG = {
     "api_key": MODELSCOPE_API_KEY,
 }
 
+"""
 MODELSCOPE_CONFIG = {
     "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
     "base_url": "https://api-inference.modelscope.cn/v1/",
     "api_key": MODELSCOPE_API_KEY,
 }
+"""
 
 """
 MODELSCOPE_CONFIG = {
@@ -103,12 +107,14 @@ MODELSCOPE_CONFIG = {
 }
 """
 
+"""
 NVIDIA_API_KEY = "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"
 MODELSCOPE_CONFIG = {
     "model": "deepseek-ai/deepseek-r1",
     "base_url": "https://integrate.api.nvidia.com/v1",
     "api_key": NVIDIA_API_KEY,
 }
+"""
 
 OLLAMA_CONFIG = {
     #"model": "gpt-oss:20b",

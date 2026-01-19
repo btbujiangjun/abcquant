@@ -136,7 +136,6 @@ async function updateBacktest(symbol) {
         const response = await fetch(`/backtest/${symbol}?start=${start}&end=${end}&mode=${mode}`);
         if (!response.ok) throw new Error("请求失败");
         let res = await response.json();
-        console.log(res)
         if (typeof res === 'string') { res = JSON.parse(res);}
         const actualDates = res.dates;
         renderReport(symbol, res.report)
@@ -226,11 +225,56 @@ async function updateBacktest(symbol) {
 
 
 window.addEventListener('resize', () => myChart.resize());
+let debounceTimer;
 const input = document.getElementById('symbol_text');
+const box = document.getElementById('suggestion-box');
 input.addEventListener('keydown', function(event) {
     if (event.key === 'Enter') {
         event.preventDefault(); 
         doBacktest(this.value);
     }
 });
+input.addEventListener('input', (e) => {
+    clearTimeout(debounceTimer);
+    const q = e.target.value.trim();
+    
+    if (!q) {
+        box.style.display = 'none';
+        return;
+    }
 
+    // 防抖处理：用户停止输入 250ms 后发请求
+    debounceTimer = setTimeout(async () => {
+        const response = await fetch(`/api/stocks/search?q=${encodeURIComponent(q)}`);
+        const stocks = await response.json();
+        renderSuggestions(stocks);
+    }, 250);
+});
+
+function renderSuggestions(stocks) {
+    if (stocks.length === 0) {
+        box.style.display = 'none';
+        return;
+    }
+
+    box.innerHTML = stocks.map(s => `
+        <div class="item" onclick="selectStock('${s.symbol}', '${s.name}')">
+            <span class="symbol">${s.symbol}</span>
+            <span class="name">${s.name}</span>
+            <span class="market-tag ${s.exchange}">${s.exchange}</span>
+        </div>
+    `).join('');
+    box.style.display = 'block';
+}
+
+function selectStock(symbol, name) {
+    input.value = `${name} (${symbol})`;
+    box.style.display = 'none';
+    console.log("选中的 yf 代码:", symbol);
+    doBacktest(symbol);   
+}
+
+// 点击空白处关闭下拉框
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.search-container')) box.style.display = 'none';
+});
