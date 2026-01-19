@@ -60,6 +60,50 @@ class StockBaseManager:
             logger.error(f"❌ A 股抓取失败: {e}")
         return self.list2df(data)
 
+    def _patch_hk_mkt_cap(self, df: pd.DataFrame, batch_size: int = 500) -> pd.DataFrame:
+        """
+        利用 yfinance 批量补全港股市值
+        :param df: 传入的港股 DataFrame
+        :param batch_size: 每批次请求的代码数量
+        """
+        import yfinance as yf
+        logger.info(f"🧬 开始补全港股市值，总计需处理 {len(df)} 条数据...")
+        
+        # 只针对 symbol 格式正确的进行处理
+        symbols = df['symbol'].tolist()
+        
+        # 将列表切分为小块，避免 URL 过长或被服务器拒绝
+        for i in range(0, len(symbols), batch_size):
+            batch_symbols = symbols[i : i + batch_size]
+            batch_str = " ".join(batch_symbols)
+            
+            try:
+                # 使用 Tickers 批量初始化
+                tickers = yf.Tickers(batch_str)
+                
+                for sym in batch_symbols:
+                    try:
+                        # 获取 marketCap (yfinance 字段名为 marketCap)
+                        info = tickers.tickers[sym].info
+                        mkt_cap = info.get('marketCap') or info.get('previousClose', 0) * info.get('sharesOutstanding', 0)
+                        
+                        if mkt_cap:
+                            df.loc[df['symbol'] == sym, 'mkt_cap'] = float(mkt_cap)
+                    except Exception:
+                        # 单只股票失败跳过，不影响整批
+                        continue
+                        
+                logger.info(f"✅ 已完成批次: {i + len(batch_symbols)}/{len(symbols)}")
+                
+                # 适当 sleep 避免被反爬
+                time.sleep(0.5)
+                
+            except Exception as e:
+                logger.error(f"❌ 批次 {i} 请求失败: {e}")
+                continue
+
+        return df
+
     def fetch_hk_stocks(self)->pd.DataFrame:
         """抓取港股数据"""
         logger.info("🚀 正在抓取港股数据...")
@@ -82,11 +126,7 @@ class StockBaseManager:
         except Exception as e:
             logger.error(f"❌ 港股抓取失败: {e}")
 
-        for d in data:
-            if d["symbol"] == "0700.HK" or d["name"] == "腾讯控股":
-                print(d)
-
-        return self.list2df(data)
+        return self._patch_hk_mkt_cap(self.list2df(data))
 
     def _process_us_url(self, url: str, is_nasdaq: bool)->pd.DataFrame:
         """处理 Nasdaq FTP 的文本文件"""
