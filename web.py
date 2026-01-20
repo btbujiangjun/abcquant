@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
 
 from utils.logger import logger
+from utils.format import numpy_to_python
 from core.interval import DAY_INTERVAL
 from core.ohlc import OHLCData
 from config import CRITICAL_STOCKS_US
@@ -224,7 +225,7 @@ async def backtest(symbol:str, start:str, end:str, online:str="ai"):
         v["symbol"], v["strategy_class"] = symbol, k
         v["equity_df"] = v["equity_df"].replace([np.inf, -np.inf], np.nan).fillna(0).to_dict(orient='records')    
         json_obj["signal"].append(v)
-    return to_jsonable(json_obj)
+    return numpy_to_python(json_obj)
 
 # ===================
 # 后端接口
@@ -289,21 +290,6 @@ def safe_get(row, key, default=None):
         return default
     return val
 
-def to_jsonable(obj):
-    """递归将 numpy 类型转换为原生 python 类型"""
-    if isinstance(obj, pd.Timestamp):
-        return obj.strftime('%Y-%m-%d')
-    if isinstance(obj, dict):
-        return {k: to_jsonable(v) for k, v in obj.items()}
-    elif isinstance(obj, (list, tuple)):
-        return [to_jsonable(v) for v in obj]
-    elif isinstance(obj, (np.int64, np.int32, np.int8)):
-        return int(obj)
-    elif isinstance(obj, (np.float64, np.float32)):
-        return float(obj)
-    elif isinstance(obj, np.ndarray):
-        return obj.tolist()
-    return obj
 @app.get("/stock_info/{symbol}")
 def get_stock_info(symbol: str):
     """获取单只股票的基本信息"""

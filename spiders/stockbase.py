@@ -25,6 +25,27 @@ class StockBaseManager:
         columns = ["symbol", "name", "pinyin", "mkt_cap", "exchange", "status"]
         return pd.DataFrame(columns=columns) if not data else pd.DataFrame(data)[columns]
 
+    def get_pure_stocks(self, df: pd.DataFrame) -> pd.DataFrame:
+        """清洗非正股"""
+        if df.empty: return df
+        # 1. 基础去重
+        df = df.drop_duplicates(subset=['symbol'])
+        # 2. 港股逻辑
+        mask_hk = df['exchange'] == 'HK'
+        hk_exclude = (
+            df['name'].str.contains(r'-R|人民币|购|沽|牛|熊', na=False) |
+            df['name'].str.contains(r'[A-Z]+\s[A-Z0-9]+', regex=True, na=False)
+        )
+        # 3. 美股逻辑 (剔除权证/单元/优先股)
+        mask_us = df['exchange'] == 'US'
+        us_exclude = (
+            (df['symbol'].str.len() > 4) & df['symbol'].str.get(-1).isin(['L', 'M','U', 'R', 'W', 'N', 'O' , 'P' , 'Q']) |
+            df['name'].str.contains(r'Unit|Warrant|Right|Preferred', case=False, na=False)
+        )
+        # 执行过滤
+        df = df[~((mask_hk & hk_exclude) | (mask_us & us_exclude))]
+        return df.reset_index(drop=True)
+
     @staticmethod
     def get_pinyin_initials(name: str) -> str:
         """提取中文拼音首字母"""
@@ -68,40 +89,26 @@ class StockBaseManager:
         """
         import yfinance as yf
         logger.info(f"🧬 开始补全港股市值，总计需处理 {len(df)} 条数据...")
-        
-        # 只针对 symbol 格式正确的进行处理
         symbols = df['symbol'].tolist()
-        
-        # 将列表切分为小块，避免 URL 过长或被服务器拒绝
         for i in range(0, len(symbols), batch_size):
             batch_symbols = symbols[i : i + batch_size]
             batch_str = " ".join(batch_symbols)
-            
             try:
-                # 使用 Tickers 批量初始化
                 tickers = yf.Tickers(batch_str)
-                
                 for sym in batch_symbols:
                     try:
                         # 获取 marketCap (yfinance 字段名为 marketCap)
                         info = tickers.tickers[sym].info
                         mkt_cap = info.get('marketCap') or info.get('previousClose', 0) * info.get('sharesOutstanding', 0)
-                        
                         if mkt_cap:
                             df.loc[df['symbol'] == sym, 'mkt_cap'] = float(mkt_cap)
                     except Exception:
                         # 单只股票失败跳过，不影响整批
                         continue
-                        
                 logger.info(f"✅ 已完成批次: {i + len(batch_symbols)}/{len(symbols)}")
-                
-                # 适当 sleep 避免被反爬
-                time.sleep(0.5)
-                
             except Exception as e:
                 logger.error(f"❌ 批次 {i} 请求失败: {e}")
                 continue
-
         return df
 
     def fetch_hk_stocks(self)->pd.DataFrame:
@@ -110,17 +117,16 @@ class StockBaseManager:
         data = []
         try:
             df = ak.stock_hk_spot_em()
+            df['symbol'], df['name'], df['exchange'] = df['代码'], df['名称'], 'HK'
+            df = self.get_pure_stocks(df)
             for _, row in df.iterrows():
-                code, name = str(row['代码'])[-4:], str(row['名称'])
-                # 清理人民币柜台、债券、票据等
-                if '-R' in name or '人民币' in name or re.search(r'[A-Z]+\s[A-Z0-9]+', name):
-                    continue
+                code, name = row['symbol'][-4:], row['name']
                 data.append({
                     "symbol": f"{code}.HK",
                     "name": name,
                     "pinyin": self.get_pinyin_initials(name) or code,
                     "mkt_cap": row.get('总市值', 0),
-                    "exchange": "HK",
+                    "exchange": row.get('exchange', 'HK'),
                     "status": "1",
                 })
         except Exception as e:
@@ -162,11 +168,9 @@ class StockBaseManager:
         logger.info("🚀 正在从 Nasdaq FTP 抓取美股数据...")
         df_nasdaq = self._process_us_url(self.us_nasdaq_url, True)
         df_other = self._process_us_url(self.us_other_url, False)
-        return pd.concat([df_nasdaq, df_other], ignore_index=True) 
-
+        return self.get_pure_stocks(pd.concat([df_nasdaq, df_other], ignore_index=True)) 
 
     def save(self, df:pd.DataFrame):
-        """保存数据到DB"""
         self.db.refresh_stock_base(df)
         print(f"✅ Refresh stock base，总计 {len(df)} 条")
 

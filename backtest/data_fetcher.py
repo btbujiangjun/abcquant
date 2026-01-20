@@ -51,3 +51,13 @@ class DataFetcher:
         df = pd.read_csv(file_path)
         assert all([field in df.columns for field in self.fields]), f"fields:{self.fields} are required" 
         return df
+
+    def fetch_us_macro(self, start:str|None=None, end:str|None=None):
+        logger.info(f"Fetching US Macro data from db")
+        return {symbol:self.db.query_stock_price(
+            symbol = symbol,
+            interval = 'daily',
+            start_date = start,
+            end_date = end,
+        )[self.fields] for symbol in ['VIX', 'IXIC']}
+

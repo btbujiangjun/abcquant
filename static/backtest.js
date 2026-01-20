@@ -225,56 +225,154 @@ async function updateBacktest(symbol) {
 
 
 window.addEventListener('resize', () => myChart.resize());
-let debounceTimer;
-const input = document.getElementById('symbol_text');
-const box = document.getElementById('suggestion-box');
-input.addEventListener('keydown', function(event) {
-    if (event.key === 'Enter') {
-        event.preventDefault(); 
-        doBacktest(this.value);
-    }
-});
-input.addEventListener('input', (e) => {
-    clearTimeout(debounceTimer);
-    const q = e.target.value.trim();
-    
-    if (!q) {
-        box.style.display = 'none';
-        return;
-    }
+const SearchComponent = {
+    input: document.getElementById('symbol_text'),
+    box: document.getElementById('suggestionBox'),
+    debounceTimer: null,
+    isComposing: false,
+    selectedIndex: -1,
+    HISTORY_KEY: 'stock_search_history',
+    MAX_HISTORY: 6,
 
-    // 防抖处理：用户停止输入 250ms 后发请求
-    debounceTimer = setTimeout(async () => {
-        const response = await fetch(`/api/stocks/search?q=${encodeURIComponent(q)}`);
-        const stocks = await response.json();
-        renderSuggestions(stocks);
-    }, 250);
-});
+    init() {
+        this.bindEvents();
+    },
 
-function renderSuggestions(stocks) {
-    if (stocks.length === 0) {
-        box.style.display = 'none';
-        return;
-    }
+    bindEvents() {
+        // IME 中文输入法处理
+        this.input.addEventListener('compositionstart', () => this.isComposing = true);
+        this.input.addEventListener('compositionend', (e) => {
+            this.isComposing = false;
+            this.handleInput(e.target.value.trim());
+        });
 
-    box.innerHTML = stocks.map(s => `
-        <div class="item" onclick="selectStock('${s.symbol}', '${s.name}')">
-            <span class="symbol">${s.symbol}</span>
-            <span class="name">${s.name}</span>
-            <span class="market-tag ${s.exchange}">${s.exchange}</span>
-        </div>
-    `).join('');
-    box.style.display = 'block';
-}
+        this.input.addEventListener('input', (e) => {
+            if (this.isComposing) return;
+            this.handleInput(e.target.value.trim());
+        });
 
-function selectStock(symbol, name) {
-    input.value = `${name} (${symbol})`;
-    box.style.display = 'none';
-    console.log("选中的 yf 代码:", symbol);
-    doBacktest(symbol);   
-}
+        this.input.addEventListener('focus', () => {
+            this.input.select();
+            if (!this.input.value.trim()) this.renderHistory();
+        });
 
-// 点击空白处关闭下拉框
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('.search-container')) box.style.display = 'none';
-});
+        this.input.addEventListener('keydown', (e) => this.handleKeyDown(e));
+
+        document.addEventListener('click', (e) => {
+            if (e.target !== this.input && e.target !== this.box) this.hide();
+        });
+
+        this.box.addEventListener('click', (e) => {
+            const item = e.target.closest('.suggestion-item');
+            if (item) this.confirmSelection(item);
+        });
+    },
+
+    handleInput(q) {
+        clearTimeout(this.debounceTimer);
+        if (!q) {
+            this.renderHistory();
+            return;
+        }
+
+        this.debounceTimer = setTimeout(async () => {
+            try {
+                const response = await fetch(`/api/stocks/search?q=${encodeURIComponent(q)}`);
+                const stocks = await response.json();
+                this.renderStocks(stocks);
+            } catch (err) {
+                console.error("搜索失败", err);
+            }
+        }, 250);
+    },
+
+    renderStocks(stocks) {
+        if (!stocks.length) {
+            this.hide();
+            return;
+        }
+        const html = stocks.map((s, i) => this.getItemHTML(s, i)).join('');
+        this.box.innerHTML = html;
+        this.show();
+    },
+
+    renderHistory() {
+        const history = JSON.parse(localStorage.getItem(this.HISTORY_KEY) || '[]');
+        if (!history.length) {
+            this.hide();
+            return;
+        }
+        const html = `<div class="history-header">最近搜索</div>` + 
+                     history.map((s, i) => this.getItemHTML(s, i, true)).join('');
+        this.box.innerHTML = html;
+        this.show();
+    },
+
+    getItemHTML(s, i, isHistory = false) {
+        return `
+            <div class="suggestion-item" data-index="${i}" 
+                 data-symbol="${s.symbol}" data-name="${s.name}" data-market="${s.exchange}">
+                <span class="symbol">${isHistory ? '🕒 ' : ''}${s.symbol}</span>
+                <span class="name">${s.name}</span>
+                <span class="market-tag ${s.exchange}">${s.exchange}</span>
+            </div>`;
+    },
+
+    handleKeyDown(e) {
+        const items = this.box.querySelectorAll('.suggestion-item');
+        if (!items.length || this.box.style.display === 'none') {
+            if (e.key === 'Enter') doBacktest(this.input.value);
+            return;
+        }
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            this.selectedIndex = (this.selectedIndex + 1) % items.length;
+            this.highlight(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            this.selectedIndex = (this.selectedIndex - 1 + items.length) % items.length;
+            this.highlight(items);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (this.selectedIndex > -1) {
+                this.confirmSelection(items[this.selectedIndex]);
+            } else {
+                doBacktest(this.input.value);
+                this.hide();
+            }
+        }
+    },
+
+    highlight(items) {
+        items.forEach((item, i) => {
+            item.classList.toggle('active', i === this.selectedIndex);
+            if (i === this.selectedIndex) item.scrollIntoView({ block: 'nearest' });
+        });
+    },
+
+    confirmSelection(item) {
+        const stock = {
+            symbol: item.dataset.symbol,
+            name: item.dataset.name,
+            market: item.dataset.market
+        };
+        this.input.value = stock.symbol;
+        this.saveHistory(stock);
+        this.hide();
+        if (typeof doBacktest === 'function') doBacktest(stock.symbol);
+    },
+
+    saveHistory(stock) {
+        let history = JSON.parse(localStorage.getItem(this.HISTORY_KEY) || '[]');
+        history = history.filter(h => h.symbol !== stock.symbol);
+        history.unshift(stock);
+        localStorage.setItem(this.HISTORY_KEY, JSON.stringify(history.slice(0, this.MAX_HISTORY)));
+    },
+
+    show() { this.box.style.display = 'block'; this.selectedIndex = -1; },
+    hide() { this.box.style.display = 'none'; }
+};
+
+SearchComponent.init();
+

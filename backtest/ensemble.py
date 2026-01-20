@@ -8,7 +8,8 @@ from backtest.metrics import PerformanceMetrics
 
 class EnsembleEngine:
     """
-    量化多策略融合决策引擎 (稳健增强版)
+    量化多策略融合决策引擎
+    逻辑流：宏观风控 -> 环境识别 -> 策略融合 -> 职业执行
 
     物理意义：
     1. 权重分配：结合 Alpha(盈利能力)、Risk(稳定性)、IVP(风险平价) 与 Ortho(正交性)。
@@ -24,7 +25,8 @@ class EnsembleEngine:
         is_long_only: bool = True,          # 是否仅限做多
         turnover_threshold: float = 0.05,   # 调仓阈值：仓位变动<5%时忽略执行，减少滑点损耗
         vol_sensitivity: float = 1.5,       # 波动率敏感度
-        max_single_weight: float = 0.5      # 单策略最大权重
+        max_single_weight: float = 0.5,     # 单策略最大权重
+        sell_urgency_factor: float = 0.5,   # 卖出灵敏度系数 (阈值减半)
     ):
         self.target_risk_ratio = target_risk_ratio
         self.max_leverage = max_leverage
@@ -32,12 +34,15 @@ class EnsembleEngine:
         self.turnover_threshold = turnover_threshold
         self.vol_sensitivity = vol_sensitivity
         self.max_single_weight = max_single_weight
+        self.sell_urgency_factor = sell_urgency_factor
         self.eps = 1e-9
 
 
     def action(
         self, 
         strategy_results: Dict[str, Any], 
+        df_market: pd.DataFrame,
+        df_macro: Dict[str, pd.DataFrame] = None,
         current_pos: float = 0.0
     ) -> Dict[str, Any]:
         """
@@ -49,28 +54,29 @@ class EnsembleEngine:
             logger.warning("Ensemble strategy error: no data provided")
             return {}
 
-        # 1. 数据预处理
+        # 0. 数据预处理
         names = list(strategy_results.keys())
         trace = {name: {} for name in names}
         trace_summary = {}
         metrics_map = self._parse_metrics(strategy_results)
         returns_df = self._calculate_returns(strategy_results)
         
+        # 1. 环境与宏观感知
+        regime_info = self._get_market_regime(df_market)
+        macro_info = self._get_macro_signals(df_macro)
+
         # 2. 因子计算 (增强稳健性)
         alpha_scores = self._compute_alpha_scores(metrics_map, trace)
         risk_scores = self._compute_risk_scores(metrics_map, trace)
-        
         # 使用动态状态乘子，增加平滑逻辑
         state_mults = self._compute_dynamic_state_multipliers(metrics_map, returns_df, trace)
-        
         # [正交惩罚]：降低相关性高的策略权重
         ortho_penalty = self._compute_ortho_penalty(returns_df, trace)
 
         # [风险平价]：计算收益率波动率的倒数。增加最小波动率保护，防止回测初期数据极少时的分母塌缩
-        vols = returns_df.std()
-        vols = np.clip(vols, 0.005, 0.5) # 保护边界
-        vol_penalty = 1.0 / (vols * self.vol_sensitivity + self.eps)
-        vol_weights = vol_penalty / (vol_penalty.sum() + self.eps)
+        vols = np.clip(returns_df.std(), 0.005, 0.5) # 保护边界
+        vol_weights = 1.0 / (vols * self.vol_sensitivity + self.eps)
+        vol_weights /= (vol_weights.sum() + self.eps)
 
         # 3. 权重合成层
         weights_info = self._calculate_weights(
@@ -99,7 +105,7 @@ class EnsembleEngine:
         )
         
         q = 1 - avg_p
-        kelly_f = (avg_p * avg_b - q) / (avg_b + self.eps)
+        kelly_f_orig = (avg_p * avg_b - q) / (avg_b + self.eps)
 
         # [OPT] 组合多样性折扣增强版：使用压缩估计(Shrinkage)处理协方差
         diversity_score = 1
@@ -117,34 +123,38 @@ class EnsembleEngine:
         
         # 信心因子：采用双曲正切平滑，防止信号在阈值边缘反复横跳
         confidence_factor = np.tanh(abs(ensemble_signal) * 1.5) 
+        kelly_f = np.clip(kelly_f_orig * diversity_score * confidence_factor, 0.0, 1.0)
         
-        trace_summary.update({
-            "avg_p": avg_p, "avg_b": avg_b, "kelly_f_orig": kelly_f,
-            "diversity_score": diversity_score, "ensemble_signal": ensemble_signal,
-            "confidence_factor": confidence_factor
-        })
-         
-        kelly_f = np.clip(kelly_f * diversity_score * confidence_factor, 0.0, 1.0)
+        # 引入宏观信号
+        raw_target = ensemble_signal * kelly_f * self.target_risk_ratio
+        if macro_info['risk_level'] == 2: target_pos = raw_target * 0.1
+        elif macro_info['risk_level'] == 1: target_pos = raw_target * 0.5
+        else: target_pos = raw_target
+
+        # 6. 非对称职业执行
+        diff = target_pos - current_pos
+        is_selling = (current_pos > 0 and diff < 0) or (current_pos < 0 and diff > 0)
+        eff_threshold = self.turnover_threshold * (self.sell_urgency_factor if is_selling else 1.0)
         
-        # 建议仓位计算，引入 5% 粒度对齐
-        raw_pos_size = ensemble_signal * kelly_f * self.target_risk_ratio
+        if abs(diff) < eff_threshold:
+            exec_status, suggested_pos = "HOLD", current_pos
+        else:
+            exec_status, suggested_pos = "EXECUTE", target_pos
+
+        # 对齐与裁剪, 5% 粒度对齐
         granularity = 0.05
         suggested_pos = round(np.clip(
-            raw_pos_size, 
+            suggested_pos, 
             0 if self.is_long_only else -self.max_leverage, 
             self.max_leverage
         ) / granularity) * granularity
 
-        # 6. 执行逻辑判定 (换手抑制)
-        exec_status = (
-            "HOLD"
-            if abs(suggested_pos - current_pos) < self.turnover_threshold
-            else "EXECUTE"
-        )
-
         trace_summary.update({
+            "avg_p": avg_p, "avg_b": avg_b, "kelly_f_orig": kelly_f_orig,
+            "diversity_score": diversity_score, "ensemble_signal": ensemble_signal,
+            "confidence_factor": confidence_factor, "macro_info": macro_info,
             "kelly_f": kelly_f, "target_risk_ratio": self.target_risk_ratio,
-            "raw_pos_size": raw_pos_size, "suggested_pos": suggested_pos,
+            "raw_pos_size": raw_target, "suggested_pos": suggested_pos,
             "current_pos": current_pos, "exec_status": exec_status 
         })
 
@@ -167,6 +177,29 @@ class EnsembleEngine:
         df_equity = pd.concat(series.values(), axis=1, keys=series.keys()).ffill().fillna(1.0)
         # 使用 pct_change 代替 log，在大回撤期间 log 可能导致极值
         return df_equity.pct_change().replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+    def _get_macro_signals(self, data:Dict[str, pd.DataFrame]=None) -> Dict:
+        """获取美股宏观指标 (VIX, IXIC)"""
+        if data is None or 'VIX' not in data or 'IXIC' not in data:
+            return {"risk_level": 0, "status_msg": "无法获取宏观数据，默认正常", "vix": 20}
+        vix = data['VIX']['close'].iloc[-1]
+        ixic = data['IXIC']['close']
+        ixic_bull = ixic.iloc[-1] > ixic.tail(20).mean()
+
+        if vix > 30: return {"risk_level": 2, "status_msg": "VIX恐慌 - 极度减仓"}
+        if vix > 22 or not ixic_bull: return {"risk_level": 1, "status_msg": "宏观转弱 - 仓位对折"}
+        return {"risk_level": 0, "status_msg": "宏观稳定"}
+
+    def _get_market_regime(self, df: pd.DataFrame) -> Dict:
+        """环境识别：效率系数 (ER)"""
+        if df is None or len(df) < 20:
+            return {"er": 0.5, "regime": "TREND"}
+        # ER = 方向位移 / 绝对波动总和
+        diff = abs(df['close'].iloc[-1] - df['close'].iloc[-20])
+        path = (df['close'] - df['close'].shift(1)).abs().rolling(20).sum().iloc[-1]
+        er = diff / (path + self.eps)
+        # ER > 0.4 通常认为进入强趋势模式
+        return {"er": er, "regime": "TREND" if er > 0.35 else "RANGE"}
 
     def _compute_alpha_scores(self, m_map: Dict[str, PerformanceMetrics], trace) -> Dict[str, float]:
         """Alpha分：引入 Sigmoid 饱和函数处理收益率，防止短周期暴利导致权重失衡"""
@@ -222,13 +255,7 @@ class EnsembleEngine:
         return penalty
 
     def _calculate_weights(self, names, alpha, risk, state, ortho, vol, trace) -> Dict[str, float]:
-        scores = {}
-        for n in names:
-            # 增加对极端负分的截断，确保权重不为负
-            base = max(0.01, (alpha[n] * 0.4 + risk[n] * 0.6))
-            val = base * state[n] * vol[n] * ortho.get(n, 1.0)
-            scores[n] = float(val) if np.isfinite(val) else 0.0
-        
+        scores = {n: max(0.01, (alpha[n]*0.4+risk[n]*0.6)) * state[n] * vol[n] * ortho.get(n,1.0) for n in names} 
         total = sum(scores.values()) + self.eps
         # 归一化并施加最大单仓限制
         weights = {k: min(v / total, self.max_single_weight) for k, v in scores.items()}
@@ -237,8 +264,7 @@ class EnsembleEngine:
         final_total = sum(weights.values()) + self.eps
         final_weights = {k: v / final_total for k, v in weights.items()}
         
-        for k, v in final_weights.items():
-            trace[k]["weight"] = v
+        for k, v in final_weights.items(): trace[k]["weight"] = v
         return final_weights
 
     # --- 报告与分析模块 ---
@@ -263,7 +289,7 @@ class EnsembleEngine:
             "contribution_analysis": self._get_contribution_analysis(ortho_penalty),
             "dynamic_risk_management": self._get_risk_logic(metrics, sig),
             "action_guide": self._generate_text(sig, prob, pos, exec_status),
-            "logic_interpretation": self._interpret_logic(sig, pos, prob),
+            "logic_interpretation": self._interpret_logic(trace_summary, sig, pos, prob),
         }
 
     def _get_contribution_analysis(self, ortho_penalty: pd.Series) -> List[str]:
@@ -282,18 +308,10 @@ class EnsembleEngine:
                     actions.append(f"【风控】{n} 触发动态回撤阈值，建议减仓")
         return actions if actions else ["组合风险指标在可控范围"]
 
-    """
-    def _interpret_logic(self, sig, pos, prob) -> str:
-        if abs(sig) > 0.5 and abs(pos) < 0.15:
-            return "注：策略共振极强，但受限于正交性惩罚或波动率激增，凯利公式选择了防御性轻仓。"
-        return "注：建议仓位已根据 5% 步进进行对齐，换手抑制已开启以节省滑点。"
-    """
-
-    def _interpret_logic(self, sig, pos, prob) -> str:
+    def _interpret_logic(self, summary, sig, pos, prob) -> str:
         """
         动态逻辑解释：根据 trace_summary 的数值实时诊断信号与仓位的匹配度
         """
-        summary = getattr(self, 'last_trace_summary', {}) # 假设你在 action 中保存了快照
         if not summary:
             return "解释：系统运行正常，仓位分配符合凯利准则。"
 
@@ -301,7 +319,7 @@ class EnsembleEngine:
         b = summary.get("avg_b", 0)
         diversity = summary.get("diversity_score", 1.0)
         confidence = summary.get("confidence_factor", 1.0)
-        raw_kelly = summary.get("kelly_f_orig", 0)
+        raw_kelly = summary.get("kelly_f", 0)
         
         reasons = []
 
@@ -328,6 +346,10 @@ class EnsembleEngine:
         if abs(sig) < 0.2 and abs(pos) < 0.1:
             reasons.append("当前处于震荡分歧期，系统自动进入观察模式")
 
+        macro_info = summary.get("macro_info", {})
+        if macro_info["risk_level"] > 0:
+            reasons.append(f"当前宏观环境风险等级{macro_info['risk_level']}，{macro_info['status_msg']}")
+
         # 3. 换手抑制诊断
         if summary.get("exec_status") == "HOLD":
             reasons.append(f"仓位微调未达{self.turnover_threshold*100:.0f}%阈值，维持现状以节省摩擦成本")
@@ -341,4 +363,4 @@ class EnsembleEngine:
         if self.is_long_only and sig < -0.05: return "建议：看空信号，全线空仓避险。"
         if abs(sig) < 0.15: return "建议：信号强度不足，维持现有防御姿态。"
         msg = "高确定性共振" if prob > 0.58 else "趋势占优"
-        return f"结论：{msg}。建议目标仓位 {abs(float(pos)):.0%}，当前执行状态：{exec_status}"
+        return f"结论：{msg}。建议目标仓位 {float(pos):.0%}，当前执行状态：{exec_status}"
