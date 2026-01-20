@@ -97,13 +97,11 @@ MODELSCOPE_CONFIG = {
     "api_key": MODELSCOPE_API_KEY,
 }
 
-"""
 MODELSCOPE_CONFIG = {
     "model": "deepseek-ai/DeepSeek-V3.2",
     "base_url": "https://api-inference.modelscope.cn/v1/",
     "api_key": MODELSCOPE_API_KEY,
 }
-"""
 
 """
 NVIDIA_API_KEY = "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"

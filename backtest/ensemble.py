@@ -255,7 +255,7 @@ class EnsembleEngine:
         return penalty
 
     def _calculate_weights(self, names, alpha, risk, state, ortho, vol, trace) -> Dict[str, float]:
-        scores = {n: max(0.01, (alpha[n]*0.4+risk[n]*0.6)) * state[n] * vol[n] * ortho.get(n,1.0) for n in names} 
+        scores = {n: max(0.01, (alpha[n] * 0.5 + risk[n] * 0.5)) * state[n] * vol[n] * ortho.get(n,1.0) for n in names} 
         total = sum(scores.values()) + self.eps
         # 归一化并施加最大单仓限制
         weights = {k: min(v / total, self.max_single_weight) for k, v in scores.items()}
@@ -264,7 +264,9 @@ class EnsembleEngine:
         final_total = sum(weights.values()) + self.eps
         final_weights = {k: v / final_total for k, v in weights.items()}
         
-        for k, v in final_weights.items(): trace[k]["weight"] = v
+        for k, v in final_weights.items():
+            trace[k]["weight"] = v
+            trace[k]["vol"] = vol[k]
         return final_weights
 
     # --- 报告与分析模块 ---
