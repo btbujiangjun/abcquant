@@ -133,7 +133,7 @@ class BaseStockSpider(ABC):
 
     def update_latest_batch(self, symbols:list[str]=None, period:int=3, batch_size:int=1000):
         end = today_str()
-        start = "1970-01-01" or days_delta(end, -period)
+        start = days_delta(end, -period)
         symbols = symbols or self.query_stock_base()
         logger.info(f"[{self.__class__.__name__}] {len(symbols)} stocks in queue...")
         self.update_stock_data_batch(symbols, self.intervals, start, end, batch_size)  
