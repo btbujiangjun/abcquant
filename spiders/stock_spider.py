@@ -16,6 +16,7 @@ from db import QuantDB
 from utils.time import *
 from utils.logger import logger
 from config import CRITICAL_STOCKS_US
+from spiders.stockbase import StockBaseManager
 from core.interval import INTERVAL, MIN_INTERVAL, DAY_INTERVAL
 
 # =====================
@@ -204,57 +205,14 @@ class YF_US_Spider(BaseStockSpider):
             "VIX": "^VIX",    # 标普500波动率
         }
         self.extend_symbols = CRITICAL_STOCKS_US
+        self.stockbasemanager = StockBaseManager()
 
     def _ticker_alias(self, ticker:str) -> str:
         return self.TICKER_ALIAS[ticker] if ticker in self.TICKER_ALIAS else ticker
    
-    def _fetch_list(self, url, exchange_hint=None):
-        """下载并解析 NASDAQ FTP 列表"""
-        def _download_and_parse():
-            resp = requests.get(url, timeout=15)
-            resp.raise_for_status()
-            lines = resp.text.strip().split('\n')
-            # 最后一行是 "File Creation Time: ..."，需要去掉
-            data = "\n".join(lines[:-1])
-            df = pd.read_csv(StringIO(data), sep='|')
-            if exchange_hint:
-                df['exchange'] = exchange_hint
-            return df
-
-        df = self._retry(_download_and_parse)
-        if df is None:
-            logger.error(f"[FAIL] fetch list from {url}")
-            return pd.DataFrame()
-        return df 
-
     def refresh_stock_base(self) -> bool:
-        # 获取纳斯达克全部股票代码
-        files = {
-            "nasdaq": "https://www.nasdaqtrader.com/dynamic/symdir/nasdaqlisted.txt",
-            "others": "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
-        }
-        
-        nasdaq = self._fetch_list(files['nasdaq'], "nasdaq")
-        nasdaq = nasdaq[['Symbol', 'Security Name', 'exchange']]
-        nasdaq = nasdaq.rename(columns={
-            'Symbol': 'symbol',
-            'Security Name': 'name',
-        })
-
-        others = self._fetch_list(files['others'], "others")
-        others = others[['ACT Symbol', 'Security Name', 'exchange']]
-        others = others.rename(columns={
-            'ACT Symbol': 'symbol',
-            'Security Name': 'name',
-        })
-
-        df = pd.concat([nasdaq, others], ignore_index=True)
-        df = df.drop_duplicates(subset='symbol', keep='first').reset_index(drop=True)
-        exchange = "US"
-        df['exchange'], df["status"] = exchange, 1
-        df['symbol'] = df['symbol'].astype(str)
-        df = df[~df['symbol'].str.contains(r'[.$]', regex=True, na=False)]
-        super().refresh_stock_base(df, exchange)
+        df = self.stockbasemanager().fetch_us_stocks()
+        super().refresh_stock_base(df, "US")
         logger.info(f"Refresh stock base: US market, total symbols:{len(df)}")
         return df
 

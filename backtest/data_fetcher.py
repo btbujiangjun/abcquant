@@ -2,10 +2,12 @@ from db import QuantDB
 import pandas as pd
 import yfinance as yf
 from utils.logger import logger
+from spiders.stock_spider import YF_US_Spider
 
 class DataFetcher:
     def __init__(self, db_path:str="./data/quant_data.db"):
         self.db = QuantDB(db_path)
+        self.yf_spider = YF_US_Spider()
         self.fields = ['date', 'open', 'high', 'low', 'close', 'volume']
 
     def fetch_llm_data(self, symbol, start:str|None=None, end:str|None=None):
@@ -32,19 +34,7 @@ class DataFetcher:
 
     def fetch_yf(self, symbol, start, end):
         logger.info(f"Fetching {symbol} data from Yahoo Finance")
-        df = yf.download(symbol, start=start, end=end, auto_adjust=True, progress=False)
-        
-        if df.empty:
-            raise ValueError(f"No data returned from yfinance for {symbol}")    
-
-        if isinstance(df.columns, pd.MultiIndex):
-            tickers = df.columns.get_level_values(-1).unique()
-            if len(tickers) == 1:
-                df.columns = df.columns.droplevel(-1)
-
-        df.reset_index(inplace=True)
-        df.rename(columns={'Date':'date','Open':'open','High':'high','Low':'low','Close':'close','Volume':'volume'}, inplace=True)
-        return df[self.fields]
+        return self.yf_spider.fetch_stock_data(symbol, "daily", start, end)
 
     def fetch_csv(self, file_path):
         logger.info(f"Loading data from {file_path}")

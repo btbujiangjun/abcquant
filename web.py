@@ -177,13 +177,11 @@ async def get_report(date:str = None, interval:int = 30):
 
 
 @app.get("/backtest/{symbol}")
-async def backtest(symbol:str, start:str, end:str, online:str="ai"):
-    json_obj = {}
-    json_obj["symbol"] = symbol
-    i, summary_table = 0, ""
-
+async def backtest(symbol:str, start:str, end:str, mode:str="ai"):
+    json_obj = {"symbol": symbol}
     summary_data = []
-    if online == "online":
+
+    if mode == "online":
         results, report = worker.backtest_online(symbol, start, end)
     else:
         results, report = worker.backtest(symbol, start, end)
