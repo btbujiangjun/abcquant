@@ -4,3 +4,11 @@ requests
 beautifulsoup4
 pandas
 APScheduler
+sqlalchemy
+colorlog
+futu-api
+openai
+ollama
+TA-Lib
+akshare
+pypinyin

@@ -12,7 +12,7 @@ class Dragon:
             """
             CREATE TABLE IF NOT EXISTS dragon_growth (
                 symbol TEXT,
-                latest_date TEXT,
+                date TEXT,
                 prev_date TEXT,
                 flag INTEGER,
                 prev_close DOUBLE,

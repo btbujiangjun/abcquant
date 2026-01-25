@@ -347,8 +347,8 @@ class TradeDB:
         return {r['symbol']: {'qty': r['qty'], 'cost': r['cost_price']} for _, r in df.iterrows()}
 
 if __name__ == '__main__':
-    d = DB(db_path="./data/quant_data.db")
-    d.ddl("DROP TABLE stock_base")
+    #d = DB(db_path="./data/quant_data.db")
+    #d.ddl("DROP TABLE stock_base")
     db = QuantDB()
     db.init_db()
     df = db.query_stock_base(top_k=5)
