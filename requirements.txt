@@ -12,3 +12,7 @@ ollama
 TA-Lib
 akshare
 pypinyin
+uvicorn
+python-multipart
+jinja2
+fastapi
