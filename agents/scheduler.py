@@ -62,6 +62,7 @@ class Scheduler:
             'interval', 
             seconds=7200,
             next_run_time=datetime.now(),
+            max_instances=1,
             kwargs={
                 "name":"Hour job for critical stocks", 
                 "spider": self.spider, 
