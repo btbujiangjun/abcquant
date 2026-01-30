@@ -7,7 +7,7 @@ import signal
 # 将项目根目录添加到Python路径
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from db import QuantDB
+from db import QuantDB, TradeDB
 from utils.logger import logger
 from agents.scheduler import Scheduler
 
@@ -35,11 +35,11 @@ sys.excepthook = info
 
 
 def main():
-    logger.info("🚀Starting quant spider project...")
+    logger.info("🚀Starting abcquant...")
 
     # 1. 初始化数据库
-    db = QuantDB()
-    db.init_db()
+    QuantDB().init_db()
+    TradeDB().init_db()
     logger.info("👉Database initialized.")
     
     # 2. 启动调度器
