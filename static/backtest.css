@@ -1,0 +1,56 @@
+.market-tag { font-size: 10px; padding: 2px 4px; border-radius: 3px; margin-left: 5px; color: #fff; }
+.CN { background: #ff4d4f; } /* A股红色 */
+.HK { background: #fa8c16; } /* 港股橙色 */
+.US { background: #1890ff; } /* 美股蓝色 */
+
+.search-container {
+    position: relative;
+    width: 350px;
+    margin: 20px;
+}
+
+#symbol_text {
+    width: 95%;
+    padding: 10px;
+    box-sizing: border-box;
+    border: 2px solid #dfe1e5;
+    border-radius: 4px;
+    outline: none;
+}
+
+#symbol_text:focus { border-color: #4285f4; }
+
+.suggestion-box {
+    position: absolute;
+    width: 100%;
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    background: white;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    z-index: 1000;
+    display: none;
+    border-radius: 0 0 4px 4px;
+}
+
+.suggestion-item {
+    padding: 10px 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #f1f1f1;
+}
+.suggestion-item:last-child { border-bottom: none; }
+.suggestion-item.active, .suggestion-item:hover {
+    background-color: #e8f0fe;
+}
+
+.history-header {
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #70757a;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #eee;
+    font-weight: bold;
+}
