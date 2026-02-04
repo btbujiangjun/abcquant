@@ -6,6 +6,7 @@ import threading
 import numpy as np
 import pandas as pd
 from typing import List, Dict, Tuple, Any, Optional
+from contextlib import contextmanager
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy import (
     create_engine, 
@@ -47,9 +48,16 @@ class DB:
         inspector = inspect(self.engine)
         return inspector.get_table_names()
 
+    @contextmanager
     def create_connection(self):
-        return sqlite3.connect(self.db_path, check_same_thread=False)
-
+        conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        if conn is None:
+            raise ConnectionError(f"无法打开数据库: {self.db_path}")
+        try:
+            yield conn
+        finally:
+            conn.close()
+ 
     def ddl(self, ddl: Any):
         with self._lock, self.create_connection() as conn:
             try:

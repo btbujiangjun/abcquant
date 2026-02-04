@@ -60,7 +60,7 @@ class Scheduler:
         self.scheduler.add_job(
             hour_job, 
             'interval', 
-            seconds=7200,
+            seconds=14400,
             next_run_time=datetime.now(),
             max_instances=1,
             kwargs={
