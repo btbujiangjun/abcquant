@@ -45,7 +45,7 @@ class Worker:
             return {}, {}
 
         for strategy_class, param_grid in self.strategy_configs:
-            logger.info(f"🚀 正在优化策略: {strategy_class.strategy_class}...")
+            logger.debug(f"🚀 正在优化策略: {strategy_class.strategy_class}...")
             best_params, best_perf, best_equity = Analyzer.optimize_parameters(
                 strategy_class, df, param_grid, n_jobs=self.n_jobs
             )

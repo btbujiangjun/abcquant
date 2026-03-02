@@ -140,7 +140,7 @@ class Analyzer:
         keys = list(param_grid.keys())
         combinations = [dict(zip(keys, v)) for v in product(*param_grid.values())] or [{}]
         
-        logger.info(f"Starting Grid Search: {len(combinations)} combinations")
+        logger.debug(f"Starting Grid Search: {len(combinations)} combinations")
         
         best_params, best_perf, best_equity, max_score = {}, None, None, -np.inf
 
